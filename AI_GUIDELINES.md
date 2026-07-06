@@ -173,11 +173,17 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 - **Prioridade:** high
 - **Área:** estratégia
 - **Descrição:** Backtest com `tp_close_pcts [50,30,20]` vs resultado real para validar assimetria estrutural.
+- **Status:** in_progress
+- **Status (atualização 2026-07-06):** motor base isolado em `tools/quant_validator.py` (`QuantBacktester`) + `POST /api/backtest`; TP blended 1.8R; falta UI React e simulação ladder de parciais separadas.
+
+### [IMP-008] UI de backtest no dashboard React
+- **Prioridade:** medium
+- **Área:** dashboard
+- **Arquivo(s):** `dashboard/src/pages/`
+- **Descrição:** Consumir `POST /api/backtest` com formulário symbol/timeframe/days e exibir métricas (WR, PF, DD, fees).
 - **Status:** open
 
 ---
-
-## Resolvidos
 
 > Log append-only. Cada fix referencia o `ERR-*` / `IMP-*` original. A solução detalhada fica **no mesmo bloco do erro** (seção acima); aqui fica o índice cronológico.
 
@@ -258,7 +264,7 @@ chore - add Cursor hook to inject AI guidelines
 2. Atualizar `AI_GUIDELINES.md` se aplicável (ERR/IMP/Resolvidos)
 3. Atualizar `README.md` se mudou arquitetura ou fluxos
 4. **Commit** com mensagem no formato acima
-5. **Push** somente se o usuário pedir (padrão: commit local)
+5. **Push obrigatório** para `origin` na mesma sessão — **sempre**, ao encerrar trabalho com alterações versionáveis (não deixar só commit local)
 
 ### O que não commitar
 
@@ -273,9 +279,10 @@ chore - add Cursor hook to inject AI guidelines
 3. **Append-only** — só adicionar conteúdo; nunca apagar nem reescrever entradas existentes, exceto se o usuário pedir explicitamente.
 4. **Ao resolver um erro** → adicionar bloco **Solução** no mesmo `ERR-*`/`IMP-*` (manter o erro original) + nova entrada em Resolvidos com `Ref:`.
 5. **Ao alterar fluxos, API ou estrutura de pastas** → atualizar README.md na mesma sessão.
-6. **Ao concluir alterações** → commit no Git com mensagem clara (`fix - ...`, `feat - ...`, etc.) — ver [Versionamento Git](#versionamento-git).
+6. **Ao concluir alterações** → **sempre** commit + push para `origin` na mesma sessão (`fix - ...`, `feat - ...`, etc.) — ver [Versionamento Git](#versionamento-git). Não encerrar sessão com alterações versionáveis apenas em commit local.
 7. **Nunca commitar** `.env`, sessões Telegram, `data/` com credenciais ou PII.
+8. **Regra absoluta de encerramento:** toda sessão que alterou código, docs versionáveis, hooks ou config do repo **deve** terminar com `git commit` seguido de `git push` (salvo falha de rede/permissão — registrar no chat e retentar).
 
 ---
 
-*Última atualização: 2026-07-06 (append-only + solução junto do erro)*
+*Última atualização: 2026-07-06 (commit + push obrigatórios ao encerrar sessão)*

@@ -1,6 +1,7 @@
 from src.api.routes.account import router as account_router
 from src.api.routes.analysis import router as analysis_router
 from src.api.routes.auth import router as auth_router
+from src.api.routes.backtest import router as backtest_router
 from src.api.routes.indicators import router as indicators_router
 from src.api.routes.learning import router as learning_router
 from src.api.routes.settings import router as settings_router
@@ -12,6 +13,7 @@ __all__ = [
     "account_router",
     "analysis_router",
     "auth_router",
+    "backtest_router",
     "indicators_router",
     "learning_router",
     "settings_router",

@@ -15,6 +15,7 @@ from src.api.routes import (
     account_router,
     analysis_router,
     auth_router,
+    backtest_router,
     indicators_router,
     learning_router,
     settings_router,
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(account_router, prefix="/api")
     app.include_router(watchlist_router, prefix="/api")
     app.include_router(indicators_router, prefix="/api")
+    app.include_router(backtest_router, prefix="/api")
 
     @app.get("/api/health")
     def health() -> dict:

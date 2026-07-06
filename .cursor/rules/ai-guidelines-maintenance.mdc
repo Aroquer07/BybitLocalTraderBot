@@ -17,6 +17,6 @@ Before ending a session that touched bugs, audits, or refactors:
 2. **Improvement or tech debt** → append to "Melhorias pendentes" with new ID `IMP-NNN`.
 3. **Fixed error/improvement** → under the **same** `ERR-*`/`IMP-*` entry, append a `#### Solução (date)` block (what was done, files, commit message). Keep the original error text. Also append a row in "Resolvidos" with `Ref: ERR-NNN`.
 4. **Architecture change** → update README.md (README is not append-only).
-5. **Session with code/docs changes** → commit to Git (`fix - ...`, `feat - ...`, `docs - ...`).
+5. **Session with code/docs changes** → commit **and push** to `origin` in the same session (`fix - ...`, `feat - ...`, `docs - ...`). Never end a session with only a local commit.
 
 Do not commit secrets (`.env`, Telegram sessions, `data/` runtime files).

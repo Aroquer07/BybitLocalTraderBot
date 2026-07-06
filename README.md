@@ -233,6 +233,7 @@ BybitBot/
 │   ├── api/                   # FastAPI do dashboard
 │   └── utils/
 ├── dashboard/                 # React + Vite
+├── tools/                     # Backtest vetorial isolado (VectorBT)
 └── scripts/                   # start/stop, diagnóstico
 ```
 
@@ -828,6 +829,7 @@ Se `TELEGRAM_BOT_TOKEN` ou `TELEGRAM_NOTIFY_CHAT_ID` ausentes → notificações
 | GET | `/api/account` | Saldo USDT (Bybit on-demand) |
 | PUT | `/api/account/mode` | Altera `BYBIT_MODE` no `.env` |
 | GET | `/api/events` | **SSE** — push quando arquivos mudam |
+| POST | `/api/backtest` | Backtest vetorial isolado (VectorBT, sem execução ao vivo) |
 
 ### 14.4 Comunicação frontend ↔ API
 
@@ -1678,6 +1680,46 @@ Conecta na Bybit on-demand. **position_groups** agrupa fills parciais por trade 
   "utc_offset_hours": -3
 }
 ```
+
+---
+
+#### `POST /api/backtest`
+
+Backtest vetorial **isolado** (`tools/quant_validator.py`). Usa ccxt read-only (sem API keys), roda em `asyncio.to_thread` para não bloquear o event loop. **Não** aciona `ExchangeClient`, `ExecutionController` nem o bot ao vivo.
+
+**Request body:**
+```json
+{
+  "symbol": "SOL/USDT",
+  "timeframe": "5m",
+  "days": 30,
+  "initial_cash": 10000
+}
+```
+
+**Response 200:**
+```json
+{
+  "ok": true,
+  "symbol": "SOL/USDT",
+  "timeframe": "5m",
+  "days": 30,
+  "candles": 8590,
+  "metrics": {
+    "win_rate_pct": 28.18,
+    "profit_factor": 0.396,
+    "max_drawdown_pct": 54.89,
+    "total_return_pct": -54.71,
+    "total_fees_paid": 2249.45,
+    "total_trades": 292
+  },
+  "simulation": { "fees": 0.00055, "slippage": 0.001 }
+}
+```
+
+**Erros:** `422` (timeframe inválido), `429` (rate limit Bybit), `502` (falha download OHLCV).
+
+CLI equivalente: `python -m tools.quant_validator --symbol SOL/USDT --days 30`
 
 ---
 
