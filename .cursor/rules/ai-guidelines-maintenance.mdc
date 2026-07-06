@@ -7,14 +7,16 @@ alwaysApply: true
 
 **Hook:** `.cursor/hooks/inject-ai-guidelines.ps1` injects `AI_GUIDELINES.md` on `sessionStart` and `beforeSubmitPrompt` (every user message). Treat that content as mandatory context.
 
+## Append-only policy
+
+`AI_GUIDELINES.md` is cumulative history. **Only add content** — never delete or rewrite existing entries unless the user explicitly asks.
+
 Before ending a session that touched bugs, audits, or refactors:
 
-1. **New bug or regression** → add to `AI_GUIDELINES.md` → "Erros conhecidos (abertos)" with ID `ERR-NNN`, severity, files, evidence.
-2. **Improvement or tech debt** → add to "Melhorias pendentes" with ID `IMP-NNN` and priority.
-3. **Fixed item** → move to "Resolvidos" with date and brief description of the fix.
-4. **Architecture change** → update README.md (not only this file).
-5. **Session with code/docs changes** → commit to Git with clear message (`fix - ...`, `feat - ...`, `docs - ...`) per `AI_GUIDELINES.md` → Versionamento Git.
-
-Use the entry template in `AI_GUIDELINES.md`. Keep entries actionable: file paths, impact, suggested fix when known.
+1. **New bug or regression** → append to "Erros conhecidos (abertos)" with new ID `ERR-NNN`.
+2. **Improvement or tech debt** → append to "Melhorias pendentes" with new ID `IMP-NNN`.
+3. **Fixed error/improvement** → under the **same** `ERR-*`/`IMP-*` entry, append a `#### Solução (date)` block (what was done, files, commit message). Keep the original error text. Also append a row in "Resolvidos" with `Ref: ERR-NNN`.
+4. **Architecture change** → update README.md (README is not append-only).
+5. **Session with code/docs changes** → commit to Git (`fix - ...`, `feat - ...`, `docs - ...`).
 
 Do not commit secrets (`.env`, Telegram sessions, `data/` runtime files).
