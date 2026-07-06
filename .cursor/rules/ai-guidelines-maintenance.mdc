@@ -5,6 +5,8 @@ alwaysApply: true
 
 # AI Guidelines maintenance
 
+**Hook:** `.cursor/hooks/inject-ai-guidelines.ps1` injects `AI_GUIDELINES.md` on `sessionStart` and `beforeSubmitPrompt` (every user message). Treat that content as mandatory context.
+
 Before ending a session that touched bugs, audits, or refactors:
 
 1. **New bug or regression** → add to `AI_GUIDELINES.md` → "Erros conhecidos (abertos)" with ID `ERR-NNN`, severity, files, evidence.

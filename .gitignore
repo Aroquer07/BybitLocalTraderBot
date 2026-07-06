@@ -13,6 +13,9 @@ build/
 data/
 .run/
 .cursor/*
+!.cursor/hooks.json
+!.cursor/hooks/
+!.cursor/hooks/**
 !.cursor/rules/
 !.cursor/rules/**
 debug*.log

@@ -5,7 +5,8 @@ Registro vivo de **erros encontrados**, **melhorias pendentes** e **decisões t�
 > Toda sessão de IA que encontrar bugs, regressões ou melhorias relevantes **deve atualizar este arquivo** antes de encerrar o trabalho.
 
 **Documentação canônica do projeto:** [README.md](README.md)  
-**Relatório forense detalhado:** [relatorio_auditoria_bot.md](relatorio_auditoria_bot.md)
+**Relatório forense detalhado:** [relatorio_auditoria_bot.md](relatorio_auditoria_bot.md)  
+**Injeção automática:** hook `.cursor/hooks/inject-ai-guidelines.ps1` (em `sessionStart` + cada mensagem do usuário)
 
 ---
 

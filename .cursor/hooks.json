@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/inject-ai-guidelines.ps1",
+        "timeout": 15
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/inject-ai-guidelines.ps1",
+        "matcher": "UserPromptSubmit",
+        "timeout": 15
+      }
+    ]
+  }
+}
