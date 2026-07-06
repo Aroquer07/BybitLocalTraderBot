@@ -95,9 +95,12 @@ O sistema roda em **três processos independentes**, orquestrados pelo `start.ba
 ### 3.1 O que o `start.bat` faz
 
 ```
-[1/5] Python / venv
+[1/5] Ambiente completo (scripts/ensure_environment.ps1)
       → Cria .venv se não existir
-      → pip install -r requirements.txt
+      → pip install -r requirements.txt (sempre sincroniza — ex.: vectorbt, ccxt)
+      → npm install em dashboard/ (cria node_modules se faltar)
+      → Cria .run/ se não existir
+      → NÃO desinstala nada
 
 [2/5] Ollama
       → Verifica http://localhost:11434
@@ -105,6 +108,7 @@ O sistema roda em **três processos independentes**, orquestrados pelo `start.ba
 
 [3/5] Encerra instâncias antigas
       → stop_bot.ps1, stop_dashboard.ps1, stop_ngrok.ps1
+      → Apenas processos; preserva .venv e node_modules
 
 [4/5] Sobe serviços em background
       → start_services_hidden.ps1:
@@ -113,8 +117,17 @@ O sistema roda em **três processos independentes**, orquestrados pelo `start.ba
           • UI:      npm run dev no dashboard/ (porta 5173)
           • ngrok:   túnel remoto (opcional, requer NGROK_TOKEN)
 
-[5/5] Exibe URLs e pausa
+[5/5] Health check + URLs
+      → GET /api/health (porta 8765)
+      → Exibe URLs (dashboard, ngrok, POST /api/backtest)
 ```
+
+### 3.1.1 O que o `stop.bat` faz
+
+- Para bot, API, Vite e ngrok (processos)
+- **Não** remove `.venv`, `node_modules`, `pip` packages, código ou `.env`
+- Limpa apenas estado de runtime em `.run/` (PIDs, flags ngrok/ollama)
+- Ollama só é parado se foi o `start.bat` que o iniciou
 
 ### 3.2 Startup interno do bot (`main.py` → `TradingAgent`)
 

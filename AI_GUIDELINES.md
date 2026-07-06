@@ -229,6 +229,71 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 
 ---
 
+## Bootstrap local (`start.bat` / `stop.bat`)
+
+Referência canônica para agentes de IA e operação no Windows. Após `git pull` ou novas dependências, **sempre** rodar `stop.bat` → `start.bat` para carregar código e pacotes novos nos processos.
+
+### `start.bat` — o que faz (ordem)
+
+| Passo | Script | Ação |
+|-------|--------|------|
+| 1/5 | `scripts/ensure_environment.ps1` | Cria `.venv` se faltar; `pip install -r requirements.txt` **sempre**; `npm install` em `dashboard/`; cria `.run/` |
+| 2/5 | `start_ollama_hidden.ps1` | Sobe Ollama só se `localhost:11434` estiver offline |
+| 3/5 | `stop_bot.ps1` + `stop_dashboard.ps1` + `stop_ngrok.ps1` | Mata processos antigos antes de subir de novo |
+| 4/5 | `start_services_hidden.ps1` | Bot (`main.py`), API (`8765`), Vite (`5173`), ngrok (opcional) |
+| 5/5 | health check | `GET http://127.0.0.1:8765/api/health` |
+
+**Regra:** se faltar qualquer dependência (ex.: `vectorbt`, `ccxt`, pacotes npm), o passo 1 instala/sincroniza automaticamente. Não é necessário `pip install` manual após pull, desde que `start.bat` tenha rodado com sucesso.
+
+**Serviços após start:**
+
+| Serviço | URL / porta |
+|---------|-------------|
+| API health | `http://127.0.0.1:8765/api/health` |
+| Backtest | `POST http://127.0.0.1:8765/api/backtest` |
+| Dashboard UI | `http://127.0.0.1:5173` ou URL em `.run/ngrok_url.txt` |
+| Bot log | `.run/bot.log` |
+
+### `stop.bat` — o que faz (e o que NÃO faz)
+
+**Para (apenas processos):**
+
+- Bot (`main.py` e filhos do venv)
+- API dashboard (`run_dashboard_api.py`)
+- UI Vite (`node` no `dashboard/`)
+- ngrok (túnel)
+- Ollama **somente** se existir `.run/ollama_started_by_bybitbot.flag`
+
+**NÃO desinstala nem apaga:**
+
+- `.venv/` nem pacotes pip instalados
+- `dashboard/node_modules/`
+- Código-fonte, `.env`, `data/settings.json`, journal em `data/`
+- Sessões Telegram (`*.session`)
+
+**Limpa apenas estado de runtime em `.run/`:** `bot.pid`, `api.pid`, `dashboard.pid`, `ngrok.pid`, `ngrok_url.txt`, flags temporárias.
+
+### Quando usar
+
+| Situação | Ação |
+|----------|------|
+| Primeira vez no repo | `start.bat` (cria venv + deps + sobe tudo) |
+| Após `git pull` com deps novas | `stop.bat` → `start.bat` |
+| API retorna 404 em rota nova | `stop.bat` → `start.bat` (processo antigo ainda em memória) |
+| Parar trading/UI sem perder ambiente | `stop.bat` |
+| Reinstalar do zero (raro) | apagar `.venv` e/ou `node_modules` manualmente, depois `start.bat` |
+
+### Erros comuns
+
+| Sintoma | Causa provável | Fix |
+|---------|----------------|-----|
+| `POST /api/backtest` → 404 | API antiga ainda rodando | `stop.bat` → `start.bat` |
+| `ModuleNotFoundError: vectorbt` | venv desatualizado | `start.bat` (passo 1 sincroniza requirements) |
+| Porta 8765 ocupada | API zombie | `stop.bat` e reiniciar |
+| Vários `main.py` | start sem stop prévio | `stop.bat` antes de novo `start.bat` |
+
+---
+
 ## Versionamento Git
 
 Ao **final de cada alteração** (código, docs, hooks, config versionável), fazer commit no Git com mensagem clara para rastreabilidade.
@@ -285,4 +350,4 @@ chore - add Cursor hook to inject AI guidelines
 
 ---
 
-*Última atualização: 2026-07-06 (commit + push obrigatórios ao encerrar sessão)*
+*Última atualização: 2026-07-06 (bootstrap start.bat/stop.bat documentado)*
