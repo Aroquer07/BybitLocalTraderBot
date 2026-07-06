@@ -18,6 +18,7 @@ Registro vivo de **erros encontrados**, **melhorias pendentes** e **decisões t�
 | Melhoria ou débito técnico | [Melhorias pendentes](#melhorias-pendentes) |
 | Fix implementado | Mover para [Resolvidos](#resolvidos) com data |
 | Mudança de arquitetura/fluxo | Atualizar **README.md** (não criar doc paralelo) |
+| Alteração concluída | **Commit no Git** com mensagem clara (ver [Versionamento Git](#versionamento-git)) |
 
 ### Formato de entrada
 
@@ -195,15 +196,58 @@ Registro vivo de **erros encontrados**, **melhorias pendentes** e **decisões t�
 
 ---
 
+## Versionamento Git
+
+Ao **final de cada alteração** (código, docs, hooks, config versionável), fazer commit no Git com mensagem clara para rastreabilidade.
+
+### Formato de commit
+
+```
+fix - descrição curta do que foi corrigido
+feat - descrição curta do que foi adicionado
+docs - alterações só de documentação
+refactor - mudança interna sem alterar comportamento
+test - testes adicionados ou corrigidos
+chore - manutenção (deps, scripts, gitignore)
+```
+
+- **Idioma:** inglês
+- **Separador:** ` - ` (tipo, espaço, hífen, espaço, mensagem)
+- **Sem ticket obrigatório** — não usar `fix(TICKET):` neste repo
+- **Mensagem:** imperativo, específica, focada no *porquê* ou no *o quê* mudou
+
+### Exemplos
+
+```
+fix - clamp leverage before partial TP execution
+feat - add grouped positions table to TradesPage
+docs - centralize architecture in README
+chore - add Cursor hook to inject AI guidelines
+```
+
+### Checklist ao encerrar uma sessão com alterações
+
+1. Revisar `git status` e `git diff` — nada de `.env`, `data/`, sessões
+2. Atualizar `AI_GUIDELINES.md` se aplicável (ERR/IMP/Resolvidos)
+3. Atualizar `README.md` se mudou arquitetura ou fluxos
+4. **Commit** com mensagem no formato acima
+5. **Push** somente se o usuário pedir (padrão: commit local)
+
+### O que não commitar
+
+- `.env`, `*.session`, `data/` (runtime), `.run/`, `.venv/`, logs, `node_modules/`
+
+---
+
 ## Regras para agentes de IA
 
 1. **README.md é a única documentação de arquitetura** — nunca recriar `DOCUMENTACAO_COMPLETA.md` ou docs paralelos.
 2. **Este arquivo é o backlog técnico** — erros e melhorias vão aqui, não espalhados em comentários ou chats.
-3. **Ao alterar fluxos, API ou estrutura de pastas** → atualizar README.md na mesma PR/sessão.
+3. **Ao alterar fluxos, API ou estrutura de pastas** → atualizar README.md na mesma sessão.
 4. **Ao corrigir um item aberto** → mover de "Erros/Melhorias" para "Resolvidos" com data.
-5. **Commits em inglês** no formato `fix(TICKET):` ou `feat(TICKET):` quando houver ticket.
+5. **Ao concluir alterações** → commit no Git com mensagem clara (`fix - ...`, `feat - ...`, etc.) — ver [Versionamento Git](#versionamento-git).
 6. **Nunca commitar** `.env`, sessões Telegram, `data/` com credenciais ou PII.
 
 ---
 
-*Última atualização: 2026-07-06*
+*Última atualização: 2026-07-06 (versionamento Git)*
