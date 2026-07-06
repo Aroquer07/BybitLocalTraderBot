@@ -1,0 +1,17 @@
+---
+description: Maintain AI_GUIDELINES.md with errors and improvements found during work
+alwaysApply: true
+---
+
+# AI Guidelines maintenance
+
+Before ending a session that touched bugs, audits, or refactors:
+
+1. **New bug or regression** → add to `AI_GUIDELINES.md` → "Erros conhecidos (abertos)" with ID `ERR-NNN`, severity, files, evidence.
+2. **Improvement or tech debt** → add to "Melhorias pendentes" with ID `IMP-NNN` and priority.
+3. **Fixed item** → move to "Resolvidos" with date and brief description of the fix.
+4. **Architecture change** → update README.md (not only this file).
+
+Use the entry template in `AI_GUIDELINES.md`. Keep entries actionable: file paths, impact, suggested fix when known.
+
+Do not commit secrets (`.env`, Telegram sessions, `data/` runtime files).

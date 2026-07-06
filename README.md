@@ -1,6 +1,10 @@
-# BybitBot — Documentação Completa do Projeto
+# BybitLocalTraderBot
 
 > Guia técnico de ponta a ponta: infraestrutura, bot, dashboard, Telegram, indicadores, estratégias e ciclo de vida de um trade na Bybit.
+
+**Documentação canônica deste repositório.** Não duplicar em outros arquivos — alterações de arquitetura, fluxos e API devem ser refletidas aqui.
+
+**Complementos:** [AI Guidelines](AI_GUIDELINES.md) (erros, melhorias e backlog técnico) · regras para agentes em `.cursor/rules/`
 
 ---
 
@@ -1899,12 +1903,15 @@ Resumo das mudanças implementadas em sessões anteriores, já refletidas no có
 
 | Item | Detalhe |
 |------|---------|
-| **Arquivo** | `relatorio_auditoria_bot.md` |
+| **Relatório** | `relatorio_auditoria_bot.md` |
+| **Backlog IA** | `AI_GUIDELINES.md` (erros e melhorias rastreados por sessões) |
 | **Dados** | `data/audit/` (closed_pnl, executions, transaction_log) |
 | **Diagnóstico** | Edge quase neutro (~-$363) mas **$3.161 em taxas** viram -$3.524; WR real 47,6% (não 56,7%) |
 | **Scripts** | `scripts/audit_forense.py`, `scripts/audit_deep_analysis.py` |
 
 ### 22.9 Pendências conhecidas (melhorias sugeridas)
+
+> Lista viva e priorizada em **[AI_GUIDELINES.md](AI_GUIDELINES.md)**. Ao implementar ou descobrir novos itens, atualizar lá — não duplicar aqui.
 
 | Item | Status |
 |------|--------|
@@ -1934,4 +1941,4 @@ Resumo das mudanças implementadas em sessões anteriores, já refletidas no có
 
 ---
 
-*Documentação atualizada em 2026-07-06 | Reflete configuração em `data/settings.json` e alterações dos chats de screener, auditoria, slippage e PnL agrupado*
+*Documentação atualizada em 2026-07-06 | Fonte canônica: `README.md` | Backlog técnico: `AI_GUIDELINES.md`*

@@ -1,0 +1,12 @@
+---
+description: README.md is the canonical project documentation
+alwaysApply: true
+---
+
+# Documentation — single source of truth
+
+- **README.md** contains the full project structure, architecture, flows, API map, and troubleshooting.
+- Never recreate `DOCUMENTACAO_COMPLETA.md` or duplicate architecture docs elsewhere.
+- When changing architecture, controllers, API endpoints, settings schema, or startup flow → update **README.md** in the same session/PR.
+- Technical backlog (bugs, improvements, audit findings) goes in **AI_GUIDELINES.md**, not in README section 22.9 long lists.
+- Historical forensic report stays in `relatorio_auditoria_bot.md`; new findings get an entry in `AI_GUIDELINES.md`.

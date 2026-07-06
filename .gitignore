@@ -12,7 +12,9 @@ dist/
 build/
 data/
 .run/
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 debug*.log
 *.log
 dashboard/node_modules/
