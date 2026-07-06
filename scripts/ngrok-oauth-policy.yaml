@@ -1,0 +1,6 @@
+# Traffic Policy — Google OAuth (managed app ngrok; sem scopes custom)
+on_http_request:
+  - actions:
+      - type: oauth
+        config:
+          provider: google
