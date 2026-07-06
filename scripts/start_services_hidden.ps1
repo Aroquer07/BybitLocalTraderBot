@@ -58,23 +58,32 @@ Start-HiddenProcess `
     -ArgumentList "-X utf8 `"$(Join-Path $ProjectRoot 'scripts\run_dashboard_api.py')`"" `
     -WorkingDirectory $ProjectRoot
 
-# UI Vite
+# UI Vite (dashboard React)
+$dashboardReady = $false
 if ($StartDashboard) {
-    $npm = Get-Command npm -ErrorAction SilentlyContinue
-    if ($npm) {
-        $dashDir = Join-Path $ProjectRoot "dashboard"
+    $dashDir = Join-Path $ProjectRoot "dashboard"
+    $viteBin = Join-Path $dashDir "node_modules\vite\bin\vite.js"
+    if (-not (Test-Path $viteBin)) {
+        Write-Host "  AVISO: dashboard sem node_modules - rode start.bat para npm install."
+    } else {
+        $dashCmd = Join-Path $ProjectRoot "scripts\run_dashboard_dev.cmd"
         Start-HiddenProcess `
             -FilePath "cmd.exe" `
-            -ArgumentList "/c npm run dev" `
-            -WorkingDirectory $dashDir
-        Wait-HttpOk -Uri "http://127.0.0.1:5173" -TimeoutSeconds 90 | Out-Null
-        Start-Sleep -Seconds 3
+            -ArgumentList "/c `"$dashCmd`"" `
+            -WorkingDirectory $ProjectRoot
+        $dashboardReady = Wait-HttpOk -Uri "http://127.0.0.1:5173" -TimeoutSeconds 90
+        if ($dashboardReady) {
+            Write-Host "  Dashboard OK: http://127.0.0.1:5173"
+            Start-Sleep -Seconds 2
+        } else {
+            Write-Host "  AVISO: Dashboard nao respondeu em :5173 - veja .run\dashboard.log"
+        }
     }
 }
 
-# ngrok ANTES de abrir o browser
+# ngrok so depois do Vite estar pronto
 $dashboardUrl = "http://127.0.0.1:5173"
-if ($StartDashboard) {
+if ($StartDashboard -and $dashboardReady) {
     Start-Sleep -Seconds 2
     $ngrokScript = Join-Path $ProjectRoot "scripts\start_ngrok.ps1"
     if (Test-Path $ngrokScript) {
@@ -96,6 +105,8 @@ if ($OpenBrowser) {
     } catch {
         Write-Host "  AVISO: nao foi possivel abrir o browser: $_"
     }
+} elseif (-not $dashboardReady -and $StartDashboard) {
+    Write-Host "  Browser nao aberto: dashboard indisponivel."
 }
 
 # Grava URL final para o start.bat

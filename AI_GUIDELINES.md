@@ -288,6 +288,7 @@ Referência canônica para agentes de IA e operação no Windows. Após `git pul
 | Sintoma | Causa provável | Fix |
 |---------|----------------|-----|
 | `POST /api/backtest` → 404 | API antiga ainda rodando | `stop.bat` → `start.bat` |
+| ngrok `ERR_NGROK_3004` | Vite (:5173) nao subiu; tunel sem backend | `stop.bat` → `start.bat`; ver `.run/dashboard.log` |
 | `ModuleNotFoundError: vectorbt` | venv desatualizado | `start.bat` (passo 1 sincroniza requirements) |
 | Porta 8765 ocupada | API zombie | `stop.bat` e reiniciar |
 | Vários `main.py` | start sem stop prévio | `stop.bat` antes de novo `start.bat` |
