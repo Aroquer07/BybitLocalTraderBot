@@ -115,6 +115,22 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 - **Evidência:** [relatorio_auditoria_bot.md](relatorio_auditoria_bot.md) §3.4
 - **Status:** open
 
+### [ERR-008] TP3 não fecha posição ao atingir o preço
+- **Severidade:** high
+- **Área:** execução
+- **Arquivo(s):** `src/services/position_manager.py`, `src/services/exchange_client.py`
+- **Descrição:** Após TP1/TP2 e breakeven no TP2, o TP3 sumia ou ficava com qty menor que o restante na Bybit. Preço cruzava TP3 mas ~20% da posição permanecia aberta.
+- **Status:** resolved
+- **Evidência:** relatado em sessão 2026-07-06; breakeven apaga TPs parciais no trading-stop Bybit
+
+#### Solução (2026-07-06)
+- **O que foi feito:** `ensure_take_profit_for_remaining()` recria TP3 com qty = posição restante; monitor `final-tp` fecha a mercado se preço cruzar TP3 sem fill; restore de TPs capado ao remaining.
+- **Arquivo(s) alterados:** `exchange_client.py`, `position_manager.py`, `tests/test_final_tp_close.py`
+- **Commit:** `fix - ensure TP3 closes remaining position after partial TPs`
+- **Validação:** `pytest tests/test_final_tp_close.py`; após deploy, `stop.bat` → `start.bat`
+
+---
+
 ### [ERR-007] Win rate inflado por TPs parciais
 - **Severidade:** medium
 - **Área:** dashboard / métricas
@@ -226,6 +242,13 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 ### [FIX-007] Documentação centralizada no README
 - **Data:** 2026-07-06
 - **Descrição:** `DOCUMENTACAO_COMPLETA.md` removido; conteúdo migrado para `README.md`. Backlog técnico em `AI_GUIDELINES.md`.
+
+### [FIX-008] TP3 fecha posição restante após parciais
+- **Data:** 2026-07-06
+- **Área:** execução
+- **Arquivo(s):** `src/services/exchange_client.py`, `src/services/position_manager.py`
+- **Descrição:** Monitor final TP + `ensure_take_profit_for_remaining` após breakeven.
+- **Ref:** ERR-008
 
 ---
 

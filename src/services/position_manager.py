@@ -51,6 +51,7 @@ class ActiveTradeState:
     breakeven_trigger_tp: int = 0
     breakeven_applied: bool = False
     monitor_task: asyncio.Task[None] | None = None
+    final_tp_task: asyncio.Task[None] | None = None
 
 
 def calculate_position_size(
@@ -322,6 +323,11 @@ class PositionManager:
                 name=f"breakeven-{symbol}",
             )
 
+        state.final_tp_task = asyncio.create_task(
+            self._monitor_final_tp(state),
+            name=f"final-tp-{symbol}",
+        )
+
         result["sizing"] = {
             "amount": amount,
             "tp_amounts": {
@@ -351,6 +357,131 @@ class PositionManager:
             state.tp_close_pcts, trigger_level
         )
         return state.original_amount * (remaining_pct / 100.0) * 1.02
+
+    def _final_tp_order(self, state: ActiveTradeState) -> dict[str, Any] | None:
+        return next(
+            (tp for tp in state.tp_orders if int(tp.get("level") or 0) == REQUIRED_TP_COUNT),
+            None,
+        )
+
+    def _final_tp_size_threshold(self, state: ActiveTradeState) -> float:
+        """Tamanho máximo esperado quando só resta o TP final (20% + tolerância)."""
+        pct = state.tp_close_pcts[REQUIRED_TP_COUNT - 1]
+        return state.original_amount * (pct / 100.0) * 1.05
+
+    async def _monitor_final_tp(self, state: ActiveTradeState) -> None:
+        """
+        Garante TP3 ativo com qty correta e fecha o restante se o preço cruzar sem fill.
+        """
+        tp_final = self._final_tp_order(state)
+        if not tp_final:
+            return
+
+        tp_price = float(tp_final.get("price") or 0)
+        if tp_price <= 0:
+            return
+
+        symbol = state.symbol
+        is_long = state.side.lower() in ("buy", "long")
+        size_threshold = self._final_tp_size_threshold(state)
+        poll_interval = 5.0
+        max_wait = 604_800.0
+        elapsed = 0.0
+
+        logger.info(
+            "Monitor TP%d | %s | price=%.6g | size_threshold=%.4f",
+            REQUIRED_TP_COUNT,
+            symbol,
+            tp_price,
+            size_threshold,
+        )
+
+        try:
+            while elapsed < max_wait:
+                remaining = await self._exchange.fetch_position_size(
+                    symbol, state.side
+                )
+                if remaining <= 0:
+                    logger.info("TP%d completo | %s | posição zerada", REQUIRED_TP_COUNT, symbol)
+                    break
+
+                if remaining <= size_threshold:
+                    ensured = await self._exchange.ensure_take_profit_for_remaining(
+                        symbol,
+                        state.side,
+                        tp_price,
+                    )
+                    if ensured and ensured.get("order_id"):
+                        tp_final["order_id"] = ensured["order_id"]
+                        if ensured.get("amount"):
+                            tp_final["amount"] = ensured["amount"]
+
+                    ticker = await self._exchange.fetch_ticker(symbol)
+                    mark = float(
+                        ticker.get("last")
+                        or ticker.get("close")
+                        or ticker.get("bid")
+                        or 0
+                    )
+                    crossed = mark >= tp_price if is_long else mark <= tp_price
+
+                    if crossed:
+                        remaining = await self._exchange.fetch_position_size(
+                            symbol, state.side
+                        )
+                        if remaining <= 0:
+                            break
+
+                        order_id = tp_final.get("order_id")
+                        filled = False
+                        if order_id:
+                            try:
+                                order = await self._exchange.fetch_order(
+                                    str(order_id), symbol
+                                )
+                                status = (order.get("status") or "").lower()
+                                filled_amt = float(order.get("filled") or 0)
+                                order_amt = float(
+                                    order.get("amount") or tp_final.get("amount") or 0
+                                )
+                                if status in ("closed", "filled") or (
+                                    order_amt > 0 and filled_amt >= order_amt * 0.99
+                                ):
+                                    filled = True
+                            except Exception as exc:
+                                logger.warning(
+                                    "Poll TP%d indisponível | %s | %s",
+                                    REQUIRED_TP_COUNT,
+                                    order_id,
+                                    exc,
+                                )
+
+                        if not filled and remaining > 0:
+                            logger.warning(
+                                "TP%d cruzado sem fill — fechando restante a mercado | %s | mark=%.6g qty=%.4f",
+                                REQUIRED_TP_COUNT,
+                                symbol,
+                                mark,
+                                remaining,
+                            )
+                            await self._exchange.emergency_close_position(
+                                symbol, state.side
+                            )
+                        break
+
+                await asyncio.sleep(poll_interval)
+                elapsed += poll_interval
+
+            if elapsed >= max_wait:
+                logger.info(
+                    "Monitor TP%d timeout | %s | elapsed=%.0fs",
+                    REQUIRED_TP_COUNT,
+                    symbol,
+                    elapsed,
+                )
+        except asyncio.CancelledError:
+            logger.info("Monitor TP%d cancelado | %s", REQUIRED_TP_COUNT, symbol)
+            raise
 
     async def _monitor_breakeven(self, state: ActiveTradeState) -> None:
         """Monitora TP1 ou TP2 e move SL para entrada quando preenchido."""
@@ -486,11 +617,14 @@ class PositionManager:
             state.breakeven_applied = True
             return
 
-        pending_tps = [
-            tp
-            for tp in state.tp_orders
-            if int(tp.get("level") or 0) > state.breakeven_trigger_tp
-        ]
+        pending_tps = []
+        for tp in state.tp_orders:
+            if int(tp.get("level") or 0) > state.breakeven_trigger_tp:
+                pending_tps.append(dict(tp))
+        if pending_tps:
+            tp_final = max(pending_tps, key=lambda t: int(t.get("level") or 0))
+            if int(tp_final.get("level") or 0) == REQUIRED_TP_COUNT:
+                tp_final["amount"] = remaining
 
         current_sl = await self._exchange.fetch_open_stop_loss_price(
             state.symbol, state.side
@@ -523,7 +657,21 @@ class PositionManager:
                 for tp in state.tp_orders:
                     if abs(float(tp.get("price") or 0) - price) < 1e-8:
                         tp["order_id"] = restored.get("order_id")
+                        if restored.get("amount"):
+                            tp["amount"] = restored["amount"]
                         break
+
+            tp_final = self._final_tp_order(state)
+            if tp_final:
+                ensured = await self._exchange.ensure_take_profit_for_remaining(
+                    state.symbol,
+                    state.side,
+                    float(tp_final.get("price") or 0),
+                )
+                if ensured and ensured.get("order_id"):
+                    tp_final["order_id"] = ensured["order_id"]
+                    if ensured.get("amount"):
+                        tp_final["amount"] = ensured["amount"]
 
             logger.info(
                 "Breakeven aplicado | %s | SL->entrada @ %s | qty=%s | order=%s | tps_restored=%d",
@@ -541,7 +689,10 @@ class PositionManager:
             await self._exchange.emergency_close_position(state.symbol, state.side)
 
     def stop_monitoring(self, symbol: str) -> None:
-        """Cancela task de monitoramento para um símbolo."""
+        """Cancela tasks de monitoramento para um símbolo."""
         state = self._active_trades.get(symbol)
-        if state and state.monitor_task and not state.monitor_task.done():
-            state.monitor_task.cancel()
+        if not state:
+            return
+        for task in (state.monitor_task, state.final_tp_task):
+            if task and not task.done():
+                task.cancel()

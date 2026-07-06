@@ -691,13 +691,19 @@ class ExchangeClient:
         current = await self._collect_open_tp_snapshots(symbol, entry_norm)
         current_prices = {round(s["price"], 10) for s in current}
         restored: list[dict[str, Any]] = []
+        remaining = await self.fetch_position_size(symbol, entry_norm)
 
         for snap in snapshots:
             price = float(snap["price"])
             amount = float(snap["amount"])
-            if price <= 0 or amount <= 0:
+            if price <= 0 or amount <= 0 or remaining <= 0:
+                continue
+            amount = min(amount, remaining)
+            amount = float(self.amount_to_precision(symbol, amount))
+            if amount <= 0:
                 continue
             if round(price, 10) in current_prices:
+                remaining = max(0.0, remaining - amount)
                 continue
             try:
                 tp_order = await self.create_partial_take_profit(
@@ -709,8 +715,10 @@ class ExchangeClient:
                 restored.append({
                     **snap,
                     "order_id": tp_order.get("id"),
+                    "amount": amount,
                 })
                 current_prices.add(round(price, 10))
+                remaining = max(0.0, remaining - amount)
                 await asyncio.sleep(0.15)
             except Exception as exc:
                 logger.warning(
@@ -721,6 +729,74 @@ class ExchangeClient:
                     exc,
                 )
         return restored
+
+    async def ensure_take_profit_for_remaining(
+        self,
+        symbol: str,
+        entry_side: str,
+        take_profit_price: float,
+        *,
+        amount_tolerance: float = 0.05,
+    ) -> dict[str, Any] | None:
+        """
+        Garante TP na exchange cobrindo o restante da posição (ex.: TP3 após parciais).
+
+        Recria o TP se sumiu após breakeven ou se a qty não cobre o que ainda está aberto.
+        """
+        entry_norm = "buy" if entry_side.lower() in ("buy", "long") else "sell"
+        close_side = "sell" if entry_norm == "buy" else "buy"
+        remaining = await self.fetch_position_size(symbol, entry_norm)
+        if remaining <= 0:
+            return None
+
+        tp_price = float(self.price_to_precision(symbol, take_profit_price))
+        snapshots = await self._collect_open_tp_snapshots(symbol, entry_norm)
+        price_key = round(tp_price, 10)
+
+        for snap in snapshots:
+            snap_price = round(float(snap["price"]), 10)
+            if snap_price != price_key:
+                continue
+            snap_amount = float(snap["amount"])
+            min_ok = remaining * (1.0 - amount_tolerance)
+            if snap_amount >= min_ok:
+                return {"status": "ok", "existing": snap}
+            order_id = snap.get("order_id")
+            if order_id:
+                try:
+                    await self.cancel_order(str(order_id), symbol)
+                except Exception as exc:
+                    logger.warning(
+                        "Falha ao cancelar TP subdimensionado | %s id=%s: %s",
+                        symbol,
+                        order_id,
+                        exc,
+                    )
+
+        amount = float(self.amount_to_precision(symbol, remaining))
+        if amount <= 0:
+            return None
+
+        tp_order = await self.create_partial_take_profit(
+            symbol,
+            close_side,
+            amount,
+            tp_price,
+        )
+        logger.info(
+            "TP final garantido | %s @ %s qty=%s id=%s",
+            symbol,
+            tp_price,
+            amount,
+            tp_order.get("id"),
+        )
+        return {
+            "status": "created",
+            "order_id": tp_order.get("id"),
+            "price": tp_price,
+            "amount": amount,
+            "order": tp_order,
+        }
 
     async def cancel_stop_loss_orders(
         self,
