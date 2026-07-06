@@ -13,6 +13,19 @@
         "matcher": "UserPromptSubmit",
         "timeout": 15
       }
+    ],
+    "sessionEnd": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/session-end-guidelines.ps1 -Mode sessionEnd",
+        "timeout": 20
+      }
+    ],
+    "stop": [
+      {
+        "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/session-end-guidelines.ps1 -Mode stop",
+        "loop_limit": 1,
+        "timeout": 30
+      }
     ]
   }
 }

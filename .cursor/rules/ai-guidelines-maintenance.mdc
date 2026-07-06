@@ -5,7 +5,7 @@ alwaysApply: true
 
 # AI Guidelines maintenance
 
-**Hook:** `.cursor/hooks/inject-ai-guidelines.ps1` injects `AI_GUIDELINES.md` on `sessionStart` and `beforeSubmitPrompt` (every user message). Treat that content as mandatory context.
+**Hook:** `.cursor/hooks/inject-ai-guidelines.ps1` injects `AI_GUIDELINES.md` on `sessionStart` and `beforeSubmitPrompt` (every user message). **End of session:** `.cursor/hooks/session-end-guidelines.ps1` on `sessionEnd` and `stop` (follow-up when working tree is dirty). Treat that content as mandatory context.
 
 ## Append-only policy
 

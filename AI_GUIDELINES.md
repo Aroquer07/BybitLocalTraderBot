@@ -6,7 +6,7 @@ Registro vivo de **erros encontrados**, **melhorias pendentes** e **decisões t�
 
 **Documentação canônica do projeto:** [README.md](README.md)  
 **Relatório forense detalhado:** [relatorio_auditoria_bot.md](relatorio_auditoria_bot.md)  
-**Injeção automática:** hook `.cursor/hooks/inject-ai-guidelines.ps1` (em `sessionStart` + cada mensagem do usuário)
+**Injeção automática:** hook `.cursor/hooks/inject-ai-guidelines.ps1` (em `sessionStart` + cada mensagem do usuário). **Encerramento:** hook `.cursor/hooks/session-end-guidelines.ps1` (`sessionEnd` + `stop` com follow-up se houver alterações não commitadas).
 
 ---
 
