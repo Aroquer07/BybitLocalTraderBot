@@ -49,12 +49,18 @@ if errorlevel 1 (
 )
 
 REM --- [5/5] Health check rapido ---
-echo [5/5] Verificando API...
+echo [5/5] Verificando API e Dashboard...
 powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8765/api/health' -UseBasicParsing -TimeoutSec 15; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
 if errorlevel 1 (
-    echo       AVISO: API ainda nao respondeu em /api/health — aguarde alguns segundos ou veja .run\bot.log
+    echo       AVISO: API ainda nao respondeu em /api/health - aguarde ou veja .run\bot.log
 ) else (
     echo       API OK: http://127.0.0.1:8765/api/health
+)
+powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5173' -UseBasicParsing -TimeoutSec 15; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
+if errorlevel 1 (
+    echo       AVISO: Dashboard nao respondeu em :5173 - veja .run\dashboard.log
+) else (
+    echo       Dashboard OK: http://127.0.0.1:5173
 )
 
 echo.

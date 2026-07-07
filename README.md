@@ -119,7 +119,8 @@ O sistema roda em **três processos independentes**, orquestrados pelo `start.ba
 
 [5/5] Health check + URLs
       → GET /api/health (porta 8765)
-      → Exibe URLs (dashboard, ngrok, POST /api/backtest)
+      → GET http://127.0.0.1:5173 (dashboard)
+      → ngrok so apos Vite **e** API responderem
 ```
 
 ### 3.1.1 O que o `stop.bat` faz

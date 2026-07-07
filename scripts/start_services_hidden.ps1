@@ -58,6 +58,13 @@ Start-HiddenProcess `
     -ArgumentList "-X utf8 `"$(Join-Path $ProjectRoot 'scripts\run_dashboard_api.py')`"" `
     -WorkingDirectory $ProjectRoot
 
+$apiReady = Wait-HttpOk -Uri "http://127.0.0.1:8765/api/health" -TimeoutSeconds 60
+if ($apiReady) {
+    Write-Host "  API OK: http://127.0.0.1:8765/api/health"
+} else {
+    Write-Host "  AVISO: API nao respondeu em :8765 - veja .run\bot.log"
+}
+
 # UI Vite (dashboard React)
 $dashboardReady = $false
 if ($StartDashboard) {
@@ -81,9 +88,9 @@ if ($StartDashboard) {
     }
 }
 
-# ngrok so depois do Vite estar pronto
+# ngrok so depois do Vite e API estarem prontos
 $dashboardUrl = "http://127.0.0.1:5173"
-if ($StartDashboard -and $dashboardReady) {
+if ($StartDashboard -and $dashboardReady -and $apiReady) {
     Start-Sleep -Seconds 2
     $ngrokScript = Join-Path $ProjectRoot "scripts\start_ngrok.ps1"
     if (Test-Path $ngrokScript) {
@@ -107,6 +114,8 @@ if ($OpenBrowser) {
     }
 } elseif (-not $dashboardReady -and $StartDashboard) {
     Write-Host "  Browser nao aberto: dashboard indisponivel."
+} elseif (-not $apiReady) {
+    Write-Host "  Browser nao aberto: API indisponivel (proxy do dashboard falharia)."
 }
 
 # Grava URL final para o start.bat

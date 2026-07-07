@@ -4,4 +4,4 @@ chcp 65001 >nul
 cd /d "%~dp0\.."
 if not exist ".run" mkdir ".run"
 cd /d "%~dp0\..\dashboard"
-node node_modules\vite\bin\vite.js >> "..\.run\dashboard.log" 2>&1
+call npm run dev >> "..\.run\dashboard.log" 2>&1
