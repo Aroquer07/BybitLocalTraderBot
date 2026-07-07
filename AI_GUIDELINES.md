@@ -129,6 +129,19 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 - **Commit:** `fix - ensure TP3 closes remaining position after partial TPs`
 - **Validação:** `pytest tests/test_final_tp_close.py`; após deploy, `stop.bat` → `start.bat`
 
+### [ERR-009] Dashboard/API não busca saldo Bybit (DNS aiohttp/aiodns)
+- **Severidade:** high
+- **Área:** exchange / dashboard
+- **Arquivo(s):** `src/services/exchange_client.py`
+- **Descrição:** `/api/account` e cards "Conta Bybit" / "PnL Bybit" falhavam com `bybit GET https://api-demo.bybit.com/v5/market/time` mesmo com API local (`/api/health`) OK e `curl` na Bybit OK. CCXT async (aiohttp + `aiodns`) não resolvia DNS no Windows (`Could not contact DNS servers`).
+- **Status:** resolved
+- **Evidência:** sessão 2026-07-07; `ExchangeClient.connect()` sem patch falhava; com `ThreadedResolver` saldo retornou.
+
+#### Solução (2026-07-07)
+- **O que foi feito:** `_ensure_system_dns_resolver()` em `connect()` — recria `TCPConnector` com `aiohttp.ThreadedResolver()` (DNS do sistema via threads) antes de `load_time_difference()`.
+- **Arquivo(s) alterados:** `src/services/exchange_client.py`
+- **Validação:** script `ExchangeClient` → `fetch_balance()` OK; após `stop.bat` → `start.bat`, `/api/account` deve retornar `available: true`.
+
 ---
 
 ### [ERR-007] Win rate inflado por TPs parciais
@@ -249,6 +262,13 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 - **Arquivo(s):** `src/services/exchange_client.py`, `src/services/position_manager.py`
 - **Descrição:** Monitor final TP + `ensure_take_profit_for_remaining` após breakeven.
 - **Ref:** ERR-008
+
+### [FIX-009] DNS Bybit via ThreadedResolver no CCXT async
+- **Data:** 2026-07-07
+- **Área:** exchange
+- **Arquivo(s):** `src/services/exchange_client.py`
+- **Descrição:** Corrige falha DNS `aiodns` no Windows para chamadas Bybit (saldo, OHLCV, PnL).
+- **Ref:** ERR-009
 
 ---
 

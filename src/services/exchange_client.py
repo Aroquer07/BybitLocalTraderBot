@@ -6,6 +6,7 @@ import asyncio
 import re
 from typing import Any
 
+import aiohttp
 import ccxt.async_support as ccxt_async
 from ccxt.base.errors import AuthenticationError, BadRequest, ExchangeError, OrderNotFound
 
@@ -89,6 +90,28 @@ class ExchangeClient:
         """Indica se a exchange está inicializada."""
         return self._exchange is not None
 
+    async def _ensure_system_dns_resolver(self, exchange: ccxt_async.bybit) -> None:
+        """Usa DNS do sistema (ThreadedResolver) — evita falha aiodns no Windows."""
+        exchange.open()
+        old_session = exchange.session
+        old_connector = exchange.tcp_connector
+        if old_session is not None:
+            await old_session.close()
+        if old_connector is not None:
+            await old_connector.close()
+        loop = exchange.asyncio_loop
+        exchange.tcp_connector = aiohttp.TCPConnector(
+            ssl=exchange.ssl_context,
+            loop=loop,
+            enable_cleanup_closed=True,
+            resolver=aiohttp.ThreadedResolver(),
+        )
+        exchange.session = aiohttp.ClientSession(
+            loop=loop,
+            connector=exchange.tcp_connector,
+            trust_env=exchange.aiohttp_trust_env,
+        )
+
     async def connect(self) -> None:
         """Inicializa conexão com Bybit V5 (testnet, demo ou live)."""
         if self._exchange is not None:
@@ -115,6 +138,7 @@ class ExchangeClient:
             self._exchange.enable_demo_trading(True)
 
         try:
+            await self._ensure_system_dns_resolver(self._exchange)
             await self._exchange.load_time_difference()
             await self._exchange.load_markets()
         except AuthenticationError as exc:

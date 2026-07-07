@@ -1832,6 +1832,7 @@ Checar `OLLAMA_HOST` e `OLLAMA_MODEL` no `.env`. Modelo recomendado configurado 
 
 | Sintoma | Causa | Solução |
 |---------|-------|---------|
+| Saldo/PnL Bybit com `—` e erro `bybit GET .../v5/market/time` | DNS `aiodns` do aiohttp falha no Windows (API local OK, `curl` na Bybit OK) | Fix em `ExchangeClient.connect()` (`ThreadedResolver`); `stop.bat` → `start.bat` |
 | `Bybit indisponível no startup` | API key inválida ou rede | Checar chaves no `.env` para o `BYBIT_MODE` atual |
 | Ordem rejeitada leverage 50x | Bug antigo (corrigido) | `clamp_leverage_hard()` limita a **30x** absoluto |
 | `cannot set leverage gt maxLeverage` | Risk tier do par | Bot faz retry com leverage menor automaticamente |
