@@ -142,6 +142,19 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 - **Arquivo(s) alterados:** `src/services/exchange_client.py`
 - **Validação:** script `ExchangeClient` → `fetch_balance()` OK; após `stop.bat` → `start.bat`, `/api/account` deve retornar `available: true`.
 
+### [ERR-010] start.bat deixa Vite órfão — dashboard sem API
+- **Severidade:** high
+- **Área:** bootstrap / dashboard
+- **Arquivo(s):** `scripts/stop_dashboard.ps1`, `scripts/start_services_hidden.ps1`
+- **Descrição:** Após `stop.bat`/`start.bat`, Vite antigo continuava em `:5173` (CommandLine sem path do projeto). `start_services` via HTTP 200 achava dashboard OK, não subia Vite novo; proxy `/api/*` → `ECONNREFUSED :8765`. Usuário via erros no dashboard ao iniciar o bat.
+- **Status:** resolved
+- **Evidência:** sessão 2026-07-07; `stop_dashboard` não matava PID 43860 em `:5173`; portas livres após fix.
+
+#### Solução (2026-07-07)
+- **O que foi feito:** `Stop-ListenersOnPorts` em `process_lib.ps1`; `stop_dashboard` mata listeners `:5173`/`:8765` + match Vite ampliado; `start_services` libera `:5173` antes de subir Vite; `start.bat` health check com retry 45s.
+- **Arquivo(s) alterados:** `scripts/process_lib.ps1`, `stop_dashboard.ps1`, `start_services_hidden.ps1`, `start.bat`
+- **Validação:** após `stop_dashboard`, listeners `5173`/`8765` = 0; restart → API + account OK.
+
 ---
 
 ### [ERR-007] Win rate inflado por TPs parciais
@@ -269,6 +282,13 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 - **Arquivo(s):** `src/services/exchange_client.py`
 - **Descrição:** Corrige falha DNS `aiodns` no Windows para chamadas Bybit (saldo, OHLCV, PnL).
 - **Ref:** ERR-009
+
+### [FIX-010] Stop/start mata Vite órfão e libera portas 5173/8765
+- **Data:** 2026-07-07
+- **Área:** bootstrap
+- **Arquivo(s):** `scripts/process_lib.ps1`, `scripts/stop_dashboard.ps1`, `scripts/start_services_hidden.ps1`, `start.bat`
+- **Descrição:** Evita dashboard “OK” com Vite velho sem API após reinício.
+- **Ref:** ERR-010
 
 ---
 

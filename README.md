@@ -1788,6 +1788,7 @@ Get-Content .run\bot.log -Tail 50
 | Sintoma | Solução |
 |---------|---------|
 | `API unreachable` no browser | Confirmar `http://127.0.0.1:8765/api/health` → `{"ok":true}` |
+| Dashboard carrega mas `/api/*` falha após `start.bat` | Vite antigo em `:5173` (órfão) — rodar `stop.bat` → `start.bat`; fix em `stop_dashboard.ps1` mata listeners `:5173`/`:8765` |
 | Porta 8765 ocupada | `stop.bat` e reiniciar; ou matar processo na porta |
 | Vite sobe mas API não | Checar `.run/api.pid` e log do uvicorn |
 

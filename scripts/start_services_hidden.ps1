@@ -42,6 +42,7 @@ if (-not (Test-Path $runDir)) {
 }
 
 . (Join-Path $PSScriptRoot "ngrok_lib.ps1")
+. (Join-Path $PSScriptRoot "process_lib.ps1")
 
 $python = Join-Path $ProjectRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path $python)) {
@@ -73,6 +74,8 @@ if ($StartDashboard) {
     if (-not (Test-Path $viteBin)) {
         Write-Host "  AVISO: dashboard sem node_modules - rode start.bat para npm install."
     } else {
+        [void](Stop-ListenersOnPorts -Ports @(5173) -Label "stale Vite")
+        Start-Sleep -Seconds 1
         $dashCmd = Join-Path $ProjectRoot "scripts\run_dashboard_dev.cmd"
         Start-HiddenProcess `
             -FilePath "cmd.exe" `

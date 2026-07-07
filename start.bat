@@ -50,13 +50,13 @@ if errorlevel 1 (
 
 REM --- [5/5] Health check rapido ---
 echo [5/5] Verificando API e Dashboard...
-powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8765/api/health' -UseBasicParsing -TimeoutSec 15; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
+powershell -NoProfile -Command "try { $deadline = (Get-Date).AddSeconds(45); while ((Get-Date) -lt $deadline) { try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:8765/api/health' -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { exit 0 } } catch {}; Start-Sleep -Seconds 2 }; exit 1 } catch { exit 1 }"
 if errorlevel 1 (
     echo       AVISO: API ainda nao respondeu em /api/health - aguarde ou veja .run\bot.log
 ) else (
     echo       API OK: http://127.0.0.1:8765/api/health
 )
-powershell -NoProfile -Command "try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5173' -UseBasicParsing -TimeoutSec 15; if ($r.StatusCode -eq 200) { exit 0 } else { exit 1 } } catch { exit 1 }"
+powershell -NoProfile -Command "try { $deadline = (Get-Date).AddSeconds(45); while ((Get-Date) -lt $deadline) { try { $r = Invoke-WebRequest -Uri 'http://127.0.0.1:5173' -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { exit 0 } } catch {}; Start-Sleep -Seconds 2 }; exit 1 } catch { exit 1 }"
 if errorlevel 1 (
     echo       AVISO: Dashboard nao respondeu em :5173 - veja .run\dashboard.log
 ) else (

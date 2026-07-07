@@ -7,6 +7,8 @@ $ErrorActionPreference = "SilentlyContinue"
 $runDir = Join-Path $ProjectRoot ".run"
 $killed = 0
 
+. (Join-Path $PSScriptRoot "process_lib.ps1")
+
 foreach ($name in @("api.pid", "dashboard.pid")) {
     $pidFile = Join-Path $runDir $name
     if (Test-Path $pidFile) {
@@ -33,13 +35,17 @@ Get-CimInstance Win32_Process -Filter "name='python.exe'" | ForEach-Object {
 }
 
 Get-CimInstance Win32_Process -Filter "name='node.exe'" | ForEach-Object {
-    $cmd = $_.CommandLine
-    if ($cmd -like "*$ProjectRoot\dashboard*" -and ($cmd -like "*vite*" -or $cmd -like "*npm*")) {
+    $cmd = [string]$_.CommandLine
+    $isVite = $cmd -like "*vite*"
+    $isOurDashboard = ($cmd -like "*$ProjectRoot*") -or ($cmd -like "*\dashboard\*") -or ($cmd -like "*vite.js*")
+    if ($isVite -and $isOurDashboard) {
         Write-Host "  Stopping node PID $($_.ProcessId)"
         Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
         $killed++
     }
 }
+
+$killed += Stop-ListenersOnPorts -Ports @(8765, 5173) -Label "dashboard listener"
 
 if ($killed -eq 0) {
     Write-Host "  No dashboard processes found."
