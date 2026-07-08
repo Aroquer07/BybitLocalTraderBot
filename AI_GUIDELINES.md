@@ -157,6 +157,25 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 
 ---
 
+### [ERR-011] TP duplicado estoura limite TP+SL (Bybit retCode 110061)
+- **Severidade:** high
+- **Área:** execução
+- **Arquivo(s):** `src/services/exchange_client.py`, `src/services/position_manager.py`, `src/controllers/execution_controller.py`
+- **Descrição:** Cenário de breakeven já aplicado após restart fazia o bot manter/recriar múltiplas ordens TP parciais no mesmo preço. Resultado: `tradingStop` falhava com erro Bybit `110061 set stopLoss takeProfit exceeds ... oldTpNum+oldStNum+newNum > 20`.
+- **Status:** resolved
+- **Evidência:** sessão 2026-07-08; `1000PEPE/USDT:USDT` caiu para ~`1 TP` e o erro `110061` não reapareceu após o restart com o novo código.
+
+#### Solução (2026-07-08)
+- **O que foi feito:**
+  - Ajuste em `_is_stop_loss_order()` para não classificar `PartialTakeProfit` como SL.
+  - `ensure_take_profit_for_remaining()` com prune/cancel de TPs duplicadas no mesmo preço antes de criar novas ordens.
+  - `PositionManager._monitor_final_tp()` chama `ensure_take_profit_for_remaining()` no início.
+  - `resume_breakeven_for_open_trades()` reinicia o monitor de **TP final** mesmo quando o breakeven já está ativo (SL@entrada).
+- **Arquivo(s) alterados:** `src/services/exchange_client.py`, `src/services/position_manager.py`, `src/controllers/execution_controller.py`
+- **Validação:** open orders do símbolo reduziram para poucos itens e o `retCode 110061` não reapareceu após o restart.
+
+---
+
 ### [ERR-007] Win rate inflado por TPs parciais
 - **Severidade:** medium
 - **Área:** dashboard / métricas
@@ -289,6 +308,13 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 - **Arquivo(s):** `scripts/process_lib.ps1`, `scripts/stop_dashboard.ps1`, `scripts/start_services_hidden.ps1`, `start.bat`
 - **Descrição:** Evita dashboard “OK” com Vite velho sem API após reinício.
 - **Ref:** ERR-010
+
+### [FIX-011] Prune de TPs duplicadas e reinício correto do TP final
+- **Data:** 2026-07-08
+- **Área:** execução
+- **Arquivo(s):** `src/services/exchange_client.py`, `src/services/position_manager.py`, `src/controllers/execution_controller.py`
+- **Descrição:** Evita acúmulo de TP duplicado no mesmo preço após restart/breakeven; reduz TPs+SL para não estourar limite Bybit (110061).
+- **Ref:** ERR-011
 
 ---
 

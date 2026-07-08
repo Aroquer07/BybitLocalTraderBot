@@ -475,6 +475,7 @@ class ExecutionController:
             if size <= 0:
                 continue
 
+            breakeven_active = False
             try:
                 current_sl = await self._exchange.fetch_open_stop_loss_price(
                     symbol, side
@@ -486,13 +487,13 @@ class ExecutionController:
             if current_sl and self._exchange.is_stop_at_entry(
                 trade.entry_price, current_sl
             ):
+                breakeven_active = True
                 logger.info(
                     "Breakeven já ativo | %s | SL@%.6g ≈ entrada@%.6g — monitor não reiniciado",
                     symbol,
                     current_sl,
                     trade.entry_price,
                 )
-                continue
 
             tp_close_pcts = runtime.imba.tp_close_tuple()
             tp_orders: list[dict] = []
@@ -540,18 +541,36 @@ class ExecutionController:
                 tp_close_pcts=tp_close_pcts,
                 breakeven_trigger_tp=level,
             )
+            if breakeven_active:
+                # Se SL já está em breakeven, não precisa reiniciar monitor de breakeven,
+                # mas ainda precisamos garantir TP final (pruning/correção de duplicadas).
+                state.breakeven_applied = True
+                state.stop_loss = trade.entry_price
             self._position_mgr._active_trades[symbol] = state
-            state.monitor_task = asyncio.create_task(
-                self._position_mgr._monitor_breakeven(state),
-                name=f"breakeven-resume-{symbol}",
-            )
-            logger.info(
-                "Breakeven retomado | %s | após TP%d | size=%.4f | tps=%d",
-                symbol,
-                level,
-                size,
-                len(tp_orders),
-            )
+            if not breakeven_active:
+                state.monitor_task = asyncio.create_task(
+                    self._position_mgr._monitor_breakeven(state),
+                    name=f"breakeven-resume-{symbol}",
+                )
+                logger.info(
+                    "Breakeven retomado | %s | após TP%d | size=%.4f | tps=%d",
+                    symbol,
+                    level,
+                    size,
+                    len(tp_orders),
+                )
+            else:
+                state.final_tp_task = asyncio.create_task(
+                    self._position_mgr._monitor_final_tp(state),
+                    name=f"final-tp-resume-{symbol}",
+                )
+                logger.info(
+                    "Breakeven já ativo — reiniciando apenas monitor TP%d | %s | size=%.4f | tps=%d",
+                    REQUIRED_TP_COUNT,
+                    symbol,
+                    size,
+                    len(tp_orders),
+                )
 
     def _fill_missing_tps(
         self,

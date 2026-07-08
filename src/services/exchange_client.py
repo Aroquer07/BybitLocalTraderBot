@@ -589,6 +589,34 @@ class ExchangeClient:
         if (order.get("side") or "").lower() != close_side.lower():
             return False
         info = order.get("info") or {}
+        # Bybit (tpsl parcial) pode retornar campos de gatilho/stop em ordens de TP.
+        # Ex.: PartialTakeProfit pode vir com stopPrice/triggerPrice iguais ao takeProfitPrice.
+        # Se tratarmos isso como SL, o bot não reconhece o TP existente e recria duplicado.
+        stop_order_type = str(info.get("stopOrderType") or "").lower()
+        if "takeprofit" in stop_order_type:
+            return False
+
+        tp_val = _parse_float(order.get("takeProfitPrice")) or _parse_float(
+            info.get("takeProfitPrice")
+        )
+        if tp_val and tp_val > 0:
+            trigger_val = _parse_float(order.get("triggerPrice")) or _parse_float(
+                info.get("triggerPrice")
+            )
+            stop_price_val = _parse_float(order.get("stopPrice")) or _parse_float(
+                info.get("stopPrice")
+            )
+            stop_loss_val = _parse_float(order.get("stopLossPrice")) or _parse_float(
+                info.get("stopLossPrice")
+            )
+            # Quando os valores "stop" coincidem com o TP, é TP parcial disfarçado de stop.
+            if (
+                (trigger_val and round(float(trigger_val), 10) == round(float(tp_val), 10))
+                or (stop_price_val and round(float(stop_price_val), 10) == round(float(tp_val), 10))
+                or (stop_loss_val and round(float(stop_loss_val), 10) == round(float(tp_val), 10))
+            ):
+                return False
+
         order_type = (order.get("type") or "").lower()
         if order_type in ("stop", "stopmarket", "stop_market"):
             return True
@@ -777,12 +805,49 @@ class ExchangeClient:
         snapshots = await self._collect_open_tp_snapshots(symbol, entry_norm)
         price_key = round(tp_price, 10)
 
+        # Pruning: Bybit tem limite rígido de (TP+SL). Em alguns cenários o bot
+        # pode acumular múltiplas ordens TP duplicadas no mesmo preço.
+        # Se já existe TP suficiente para o remaining, vamos manter só 1.
+        min_ok = remaining * (1.0 - amount_tolerance)
+        matching = [
+            snap
+            for snap in snapshots
+            if round(float(snap["price"]), 10) == price_key
+        ]
+        if len(matching) > 1:
+            matching_sorted = sorted(
+                matching,
+                key=lambda s: float(s.get("amount") or 0),
+                reverse=True,
+            )
+            keep = matching_sorted[0]
+            extras = matching_sorted[1:]
+            for extra in extras:
+                order_id = extra.get("order_id")
+                if not order_id:
+                    continue
+                try:
+                    await self.cancel_order(str(order_id), symbol)
+                except Exception as exc:
+                    logger.warning(
+                        "Falha ao cancelar TP duplicado (prune) | %s id=%s: %s",
+                        symbol,
+                        order_id,
+                        exc,
+                    )
+            keep_amount = float(keep.get("amount") or 0)
+            if keep_amount >= min_ok:
+                return {
+                    "status": "ok",
+                    "existing": keep,
+                    "pruned": len(extras),
+                }
+
         for snap in snapshots:
             snap_price = round(float(snap["price"]), 10)
             if snap_price != price_key:
                 continue
             snap_amount = float(snap["amount"])
-            min_ok = remaining * (1.0 - amount_tolerance)
             if snap_amount >= min_ok:
                 return {"status": "ok", "existing": snap}
             order_id = snap.get("order_id")

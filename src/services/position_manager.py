@@ -397,6 +397,18 @@ class PositionManager:
         )
 
         try:
+            # Garante um estado "limpo" no início: evita acumular TPs duplicadas no
+            # mesmo preço (Bybit limita TP+SL e pode começar a falhar/duplicar).
+            ensured = await self._exchange.ensure_take_profit_for_remaining(
+                symbol,
+                state.side,
+                tp_price,
+            )
+            if ensured and ensured.get("order_id"):
+                tp_final["order_id"] = ensured["order_id"]
+                if ensured.get("amount"):
+                    tp_final["amount"] = ensured["amount"]
+
             while elapsed < max_wait:
                 remaining = await self._exchange.fetch_position_size(
                     symbol, state.side
