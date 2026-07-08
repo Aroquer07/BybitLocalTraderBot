@@ -185,6 +185,15 @@ Manter o bloco original do erro **intacto** acima. Registrar também em [Resolvi
 - **Status:** open
 - **Sugestão de fix:** usar `position_groups` como métrica padrão em todo o dashboard
 
+### [ERR-014] Slippage guard gera falsos positivos em PartialStopLoss (2026-07-08)
+- **Severidade:** high
+- **Área:** execução / alertas
+- **Arquivo(s):** `src/services/slippage_guard.py` (`scan_execution_rows`, `compute_slippage_pct`), `src/controllers/execution_controller.py` (`_audit_slippage_on_close`)
+- **Descrição:** Alertas `[SLIPPAGE URGENTE]` de 4–8% em stops não refletem perda real no journal. O guard compara `orderPrice` vs `execPrice` da API Bybit em fills `PartialStopLoss` Market; na Bybit, `orderPrice` é o **preço de trigger no wick** (ativação), não o SL planejado. O `execPrice` bate com o SL do trade (ex.: ENS SHORT journal exit=4.034 = SL 4.034, PnL -0.45%, mas alerta 4.68% com order=4.232). Gera bloqueio temporário de símbolos e sensação de “chuva de slippage” sem correspondência no PnL.
+- **Evidência:** forense 2026-07-08 — `fetch_linear_executions` ENS/SEI/BNB/PEPE; journal `data/trades.json` (losses hoje -0.32% a -0.52% alinhados ao SL); segunda metade do histórico WR 27.4% vs 55.7% na primeira (regime/batch, não slippage de entrada LIMIT).
+- **Status:** open
+- **Sugestão de fix:** em stops, comparar `execPrice` com SL planejado do trade (ou ignorar `orderPrice` em `PartialStopLoss`); não usar `abs()` cego — distinguir slippage desfavorável; opcional: não bloquear símbolo em falso positivo.
+
 ---
 
 ## Melhorias pendentes
@@ -448,6 +457,15 @@ chore - add Cursor hook to inject AI guidelines
 - **Descrição:** Market entries substituídas por LIMIT + chasing (10s, ±0.3%, TTL 30s/3 tentativas); hard cap leverage 15x; blacklist BTW/XAN/AVA/SOON; slippage >1% bloqueia ativo temporariamente.
 - **Arquivo(s):** `exchange_client.py`, `execution_controller.py`, `slippage_guard.py`, `scanner_filters.py`, `trade_journal.py`
 - **Status:** Implementado nesta sessão.
+- **Nota:** slippage block em stops tem falsos positivos — ver **ERR-014**.
+
+### IMP-013 — Limitar correlação no scanner batch (2026-07-08)
+
+- **Prioridade:** medium
+- **Área:** scanner / risco
+- **Arquivo(s):** `src/controllers/scanner_controller.py`, `src/controllers/execution_controller.py`
+- **Descrição:** Scanner abre vários trades na mesma direção no mesmo ciclo (ex.: 4 SHORTs 12:54–13:13 UTC fecharam juntos no bounce 13:34–13:41). Em `BYBIT_MODE=demo` até 10 slots (`effective_max_concurrent_trades`) amplifica volume (40 aberturas em 06/07, WR 24%). Limitar máx. N entradas correlacionadas (mesma direção) por batch/ciclo reduz perdas em rajada.
+- **Status:** open
 
 ### ERR-013 — start.bat quebrava no Windows (LF-only) (2026-07-08)
 
@@ -462,4 +480,4 @@ chore - add Cursor hook to inject AI guidelines
 
 ---
 
-*Última atualização: 2026-07-08 (LIMIT chasing + leverage 15x + blacklist + slippage block + fix start.bat CRLF)*
+*Última atualização: 2026-07-08 (forense WR/slippage: ERR-014 falsos positivos PartialStopLoss, IMP-013 batch correlacionado)*
