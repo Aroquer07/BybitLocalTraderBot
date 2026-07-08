@@ -449,6 +449,17 @@ chore - add Cursor hook to inject AI guidelines
 - **Arquivo(s):** `exchange_client.py`, `execution_controller.py`, `slippage_guard.py`, `scanner_filters.py`, `trade_journal.py`
 - **Status:** Implementado nesta sessão.
 
+### ERR-013 — start.bat quebrava no Windows (LF-only) (2026-07-08)
+
+- **Sintoma:** `start.bat` falhava com `'ho'`, `'itle'`, `'wershell' não é reconhecido` e `ERRO: falha ao preparar ambiente`.
+- **Causa:** `start.bat` estava com finais de linha Unix (LF) sem CRLF; `cmd.exe` corrompe os comandos.
+- **Arquivo(s):** `start.bat`, `.gitattributes`
+
+#### Solução (2026-07-08)
+
+- Convertido `start.bat` para CRLF.
+- Adicionado `.gitattributes` com `*.bat text eol=crlf` para evitar regressão.
+
 ---
 
-*Última atualização: 2026-07-08 (LIMIT chasing + leverage 15x + blacklist + slippage block)*
+*Última atualização: 2026-07-08 (LIMIT chasing + leverage 15x + blacklist + slippage block + fix start.bat CRLF)*
