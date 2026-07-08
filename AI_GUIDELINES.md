@@ -441,4 +441,14 @@ chore - add Cursor hook to inject AI guidelines
 
 ---
 
-*Última atualização: 2026-07-06 (bootstrap start.bat/stop.bat documentado)*
+## Melhorias pendentes
+
+### IMP-012 — Entrada LIMIT com chasing e guards de produção (2026-07-08)
+
+- **Descrição:** Market entries substituídas por LIMIT + chasing (10s, ±0.3%, TTL 30s/3 tentativas); hard cap leverage 15x; blacklist BTW/XAN/AVA/SOON; slippage >1% bloqueia ativo temporariamente.
+- **Arquivo(s):** `exchange_client.py`, `execution_controller.py`, `slippage_guard.py`, `scanner_filters.py`, `trade_journal.py`
+- **Status:** Implementado nesta sessão.
+
+---
+
+*Última atualização: 2026-07-08 (LIMIT chasing + leverage 15x + blacklist + slippage block)*

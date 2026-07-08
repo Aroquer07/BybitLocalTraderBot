@@ -18,6 +18,30 @@ from src.strategies.market_patterns import (
 )
 from src.strategies.win_probability import WinProbabilityResult
 
+# Blacklist estática — pares ilíquidos / alto slippage histórico
+SYMBOL_BLACKLIST: frozenset[str] = frozenset({
+    "BTWUSDT",
+    "XANUSDT",
+    "AVAUSDT",
+    "SOONUSDT",
+})
+
+
+def normalize_symbol_key(symbol: str) -> str:
+    """Normaliza símbolo para comparação com blacklist (ex: AVA/USDT → AVAUSDT)."""
+    s = symbol.upper().strip()
+    if ":" in s:
+        s = s.split(":")[0]
+    return s.replace("/", "")
+
+
+def is_symbol_blacklisted(symbol: str) -> tuple[bool, str]:
+    """Retorna (bloqueado, motivo) se o par está na blacklist estática."""
+    key = normalize_symbol_key(symbol)
+    if key in SYMBOL_BLACKLIST:
+        return True, f"Par na blacklist ilíquida: {key}"
+    return False, ""
+
 
 @dataclass(frozen=True)
 class ScannerFilterVerdict:
@@ -67,6 +91,10 @@ def evaluate_scanner_setup(
     filters: ScannerQualityConfig,
 ) -> ScannerFilterVerdict:
     """Checagens Python baratas — evita gastar LLM em setups já inválidos."""
+    blocked, reason = is_symbol_blacklisted(market_state.symbol)
+    if blocked:
+        return ScannerFilterVerdict(False, reason)
+
     if analysis.confidence_score < filters.min_imba_confidence:
         return ScannerFilterVerdict(
             False,

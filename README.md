@@ -206,7 +206,7 @@ SETTINGS_PATH=data/settings.json
 |-------|--------|
 | `confidence` | Kill switch: telegram 90%, scanner 65% |
 | `timeframes` | TFs de análise (3m–1h), execução (5m) |
-| `risk` | 1% por trade, max 3 posições, leverage 10–30x |
+| `risk` | 1% por trade, max 3 posições, leverage 10–15x (hard cap) |
 | `imba` | Fib levels, TPs 1/2/3%, close 50/30/20% |
 | `scanner` | Intervalo 300s, screener RSI discovery_only |
 | `breakeven` | `after_tp: 2` (move SL para entrada após TP2) |
@@ -693,7 +693,7 @@ Logs:
 4. PositionManager.compute_size_for_trade()
    → sizing por risco (1% do saldo)
    → cap por max_position_pct (5%)
-   → leverage via clamp_leverage_hard() — cap 30x absoluto + config + tier Bybit
+   → leverage via clamp_leverage_hard() — cap **15x** absoluto + config + tier Bybit
 
 5. Checagem max_portfolio_risk_pct (3%)
    → risco total das posições abertas
@@ -705,7 +705,7 @@ Logs:
 set_leverage(symbol, leverage)
   │
   ▼
-market order (entrada)
+LIMIT entry + chasing (10s poll, ±0.3%, TTL 30s / 3 tentativas)
   │ fill real → shift_execution_levels()
   ▼
 create_partial_stop_loss()     → SL 100% da posição
@@ -1835,9 +1835,9 @@ Checar `OLLAMA_HOST` e `OLLAMA_MODEL` no `.env`. Modelo recomendado configurado 
 |---------|-------|---------|
 | Saldo/PnL Bybit com `—` e erro `bybit GET .../v5/market/time` | DNS `aiodns` do aiohttp falha no Windows (API local OK, `curl` na Bybit OK) | Fix em `ExchangeClient.connect()` (`ThreadedResolver`); `stop.bat` → `start.bat` |
 | `Bybit indisponível no startup` | API key inválida ou rede | Checar chaves no `.env` para o `BYBIT_MODE` atual |
-| Ordem rejeitada leverage 50x | Bug antigo (corrigido) | `clamp_leverage_hard()` limita a **30x** absoluto |
+| Ordem rejeitada leverage 50x | Bug antigo (corrigido) | `clamp_leverage_hard()` limita a **15x** absoluto |
 | `cannot set leverage gt maxLeverage` | Risk tier do par | Bot faz retry com leverage menor automaticamente |
-| SL com slippage alto em alts | Baixa liquidez | Alerta Telegram se > 1%; considerar blacklist de pares ilíquidos |
+| SL com slippage alto em alts | Baixa liquidez | Alerta `[SLIPPAGE URGENTE]` + bloqueio 1h; blacklist BTW/XAN/AVA/SOON |
 | Emergency close | Proteções SL/TP falharam | Posição fechada por segurança — ver `protection_errors` no log |
 
 ---
@@ -1933,11 +1933,11 @@ Resumo das mudanças implementadas em sessões anteriores, já refletidas no có
 | **Fechamento** | `sync_closed_positions` audita última 1h |
 | **Log** | Tag `SLIPPAGE` em warning |
 
-### 22.5 Hard limit de leverage 30x
+### 22.5 Hard limit de leverage 15x
 
 | Item | Detalhe |
 |------|---------|
-| **Constante** | `ABSOLUTE_MAX_LEVERAGE = 30` |
+| **Constante** | `ABSOLUTE_MAX_LEVERAGE = 15` |
 | **Função** | `clamp_leverage_hard()` em `exchange_client.py` |
 | **Aplicado em** | `set_leverage`, `execute_trade`, `execution_controller`, `position_manager` |
 | **Motivação** | Auditoria encontrou trades a 50x apesar de `max_leverage=30` |
@@ -1995,7 +1995,7 @@ Resumo das mudanças implementadas em sessões anteriores, já refletidas no có
 | **SSE** | Server-Sent Events — push unidirecional API → browser |
 | **Trade lógico** | Posição agrupada (símbolo+lado+entry) — 1 trade com N fills parciais |
 | **Slippage guard** | Detecção de diferença orderPrice vs execPrice > 1% |
-| **clamp_leverage_hard** | Cap absoluto de 30x independente de config ou tier |
+| **clamp_leverage_hard** | Cap absoluto de 15x independente de config ou tier |
 
 ---
 

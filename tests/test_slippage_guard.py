@@ -36,7 +36,7 @@ class TestSlippageGuard:
         )
         assert event is not None
         assert event.slippage_pct > 10.0
-        assert "SLIPPAGE" in format_slippage_alert(event)
+        assert "[SLIPPAGE URGENTE]" in format_slippage_alert(event)
 
     def test_scan_execution_rows(self) -> None:
         rows = [

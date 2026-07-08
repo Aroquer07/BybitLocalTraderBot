@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import time
 from typing import Any
 
 import aiohttp
@@ -18,7 +19,28 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-ABSOLUTE_MAX_LEVERAGE = 30
+ABSOLUTE_MAX_LEVERAGE = 15
+
+ENTRY_CHASE_INTERVAL_SEC = 10
+ENTRY_CHASE_MAX_DEVIATION_PCT = 0.3
+ENTRY_CHASE_TTL_SEC = 30
+ENTRY_CHASE_MAX_ATTEMPTS = 3
+
+
+class EntryOrderExpiredError(Exception):
+    """Ordem LIMIT de entrada expirou (TTL ou tentativas de chasing esgotadas)."""
+
+    def __init__(
+        self,
+        symbol: str,
+        *,
+        order_id: str | None = None,
+        reason: str = "",
+    ) -> None:
+        self.symbol = symbol
+        self.order_id = order_id
+        self.reason = reason or f"Entry limit expired | {symbol}"
+        super().__init__(self.reason)
 
 _RISK_TIER_LEVERAGE_RE = re.compile(
     r"adjust your leverage to (\d+) or below",
@@ -58,7 +80,7 @@ def clamp_leverage_hard(
     config_max: int | None = None,
     market_max: int | None = None,
 ) -> int:
-    """Hard cap absoluto (30x) antes de qualquer chamada à API."""
+    """Hard cap absoluto (15x) antes de qualquer chamada à API."""
     capped = min(int(leverage), ABSOLUTE_MAX_LEVERAGE)
     if config_max is not None:
         capped = min(capped, int(config_max))
@@ -1282,17 +1304,14 @@ class ExchangeClient:
         stop_loss = self.price_to_precision(symbol, stop_loss)
         close_side = "sell" if side == "buy" else "buy"
 
-        entry_order, leverage = await self._create_market_order_with_risk_retry(
-            symbol, side, amount, leverage
+        entry_order, leverage = await self._create_limit_entry_with_chase(
+            symbol, side, amount, leverage, float(entry_price or 0)
         )
 
-        actual_entry = entry_price
-        if actual_entry is None:
-            fill_price = entry_order.get("average") or entry_order.get("price")
-            if fill_price:
-                actual_entry = float(fill_price)
+        fill_price = entry_order.get("average") or entry_order.get("price")
+        actual_entry = float(fill_price) if fill_price else entry_price
 
-        from src.services.slippage_guard import detect_slippage, log_slippage
+        from src.services.slippage_guard import detect_slippage, handle_slippage_event
 
         entry_slippage = None
         if entry_price and actual_entry:
@@ -1302,10 +1321,10 @@ class ExchangeClient:
                 exec_price=float(actual_entry),
                 context="entry",
                 side=side,
-                order_type="Market",
+                order_type="Limit",
             )
             if entry_slippage is not None:
-                log_slippage(entry_slippage)
+                handle_slippage_event(entry_slippage)
 
         from src.strategies.trade_validation import shift_execution_levels
 
@@ -1786,6 +1805,182 @@ class ExchangeClient:
         except Exception:
             logger.exception("Erro ao definir alavancagem | symbol=%s", symbol)
             raise
+
+    async def _submit_limit_order(
+        self,
+        symbol: str,
+        side: str,
+        amount: float,
+        price: float,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        exchange = self._ensure_connected()
+        resolved = self.resolve_symbol(symbol)
+        price = self.price_to_precision(symbol, price)
+        order_params = {"timeInForce": "GTC", **(params or {})}
+        return await exchange.create_order(
+            resolved, "limit", side, amount, price, params=order_params
+        )
+
+    def _entry_price_bounds(
+        self,
+        original_price: float,
+        side: str,
+    ) -> tuple[float, float]:
+        """Limites de preço para chasing (±0.3% do preço do sinal)."""
+        deviation = ENTRY_CHASE_MAX_DEVIATION_PCT / 100.0
+        if side == "buy":
+            return original_price, original_price * (1.0 + deviation)
+        return original_price * (1.0 - deviation), original_price
+
+    async def _resolve_chase_limit_price(
+        self,
+        symbol: str,
+        side: str,
+        original_price: float,
+        chase_attempt: int,
+    ) -> float:
+        """Calcula preço LIMIT para chasing em direção ao mercado."""
+        low, high = self._entry_price_bounds(original_price, side)
+        try:
+            book = await self.fetch_order_book(symbol, limit=5)
+            bids = book.get("bids") or []
+            asks = book.get("asks") or []
+            if side == "buy" and asks:
+                market_ref = float(asks[0][0])
+                target = min(market_ref, high)
+            elif side == "sell" and bids:
+                market_ref = float(bids[0][0])
+                target = max(market_ref, low)
+            else:
+                ticker = await self.fetch_ticker(symbol)
+                market_ref = float(ticker.get("last") or ticker.get("close") or original_price)
+                target = min(market_ref, high) if side == "buy" else max(market_ref, low)
+        except Exception:
+            logger.warning("Falha ao obter book para chase | %s — usa preço original", symbol)
+            span = high - low
+            step = span / max(ENTRY_CHASE_MAX_ATTEMPTS, 1)
+            target = low + step * chase_attempt if side == "buy" else high - step * chase_attempt
+
+        return self.price_to_precision(
+            symbol,
+            max(low, min(high, target)),
+        )
+
+    @staticmethod
+    def _order_filled_amount(order: dict[str, Any]) -> float:
+        filled = order.get("filled")
+        if filled is not None:
+            try:
+                return float(filled)
+            except (TypeError, ValueError):
+                pass
+        status = str(order.get("status") or "").lower()
+        if status == "closed":
+            try:
+                return float(order.get("amount") or 0)
+            except (TypeError, ValueError):
+                return 0.0
+        return 0.0
+
+    async def _create_limit_entry_with_chase(
+        self,
+        symbol: str,
+        side: str,
+        amount: float,
+        leverage: int,
+        signal_entry_price: float,
+    ) -> tuple[dict[str, Any], int]:
+        """
+        Entrada LIMIT com chasing assíncrono.
+
+        - Poll a cada 10s
+        - Desvio máximo 0.3% do preço do sinal
+        - TTL 30s ou 3 tentativas → cancela e levanta EntryOrderExpiredError
+        """
+        runtime = self._runtime.reload() if self._runtime else None
+        config_max = runtime.risk.max_leverage if runtime else ABSOLUTE_MAX_LEVERAGE
+        current_lev = clamp_leverage_hard(leverage, config_max=config_max)
+        current_lev = await self.set_leverage(symbol, current_lev)
+
+        if signal_entry_price <= 0:
+            ticker = await self.fetch_ticker(symbol)
+            signal_entry_price = float(
+                ticker.get("last") or ticker.get("close") or 0
+            )
+            if signal_entry_price <= 0:
+                raise ValueError(f"Preço de entrada inválido para {symbol}")
+
+        original_price = float(signal_entry_price)
+        low, high = self._entry_price_bounds(original_price, side)
+        initial_price = self.price_to_precision(
+            symbol,
+            max(low, min(high, original_price)),
+        )
+
+        chase_attempts = 0
+        start = time.monotonic()
+        order = await self._submit_limit_order(symbol, side, amount, initial_price)
+        order_id = str(order.get("id") or "")
+        logger.info(
+            "Ordem LIMIT entrada | %s %s amount=%s @ %s id=%s",
+            side,
+            symbol,
+            amount,
+            initial_price,
+            order_id,
+        )
+
+        while True:
+            await asyncio.sleep(ENTRY_CHASE_INTERVAL_SEC)
+            elapsed = time.monotonic() - start
+
+            try:
+                order = await self.fetch_order(order_id, symbol)
+            except Exception:
+                logger.exception("Falha ao consultar ordem LIMIT | %s id=%s", symbol, order_id)
+                order = order or {}
+
+            filled = self._order_filled_amount(order)
+            if filled > 0:
+                logger.info(
+                    "LIMIT preenchida | %s id=%s filled=%s elapsed=%.1fs",
+                    symbol,
+                    order_id,
+                    filled,
+                    elapsed,
+                )
+                return order, current_lev
+
+            if elapsed >= ENTRY_CHASE_TTL_SEC or chase_attempts >= ENTRY_CHASE_MAX_ATTEMPTS:
+                if order_id:
+                    await self.cancel_order(order_id, symbol)
+                raise EntryOrderExpiredError(
+                    symbol,
+                    order_id=order_id or None,
+                    reason=(
+                        f"LIMIT entrada expirada | {symbol} | "
+                        f"ttl={elapsed:.0f}s attempts={chase_attempts}"
+                    ),
+                )
+
+            chase_attempts += 1
+            chase_price = await self._resolve_chase_limit_price(
+                symbol, side, original_price, chase_attempts
+            )
+            if order_id:
+                await self.cancel_order(order_id, symbol)
+            order = await self._submit_limit_order(symbol, side, amount, chase_price)
+            order_id = str(order.get("id") or "")
+            logger.info(
+                "Chasing LIMIT #%d | %s %s @ %s id=%s (orig=%s)",
+                chase_attempts,
+                side,
+                symbol,
+                chase_price,
+                order_id,
+                original_price,
+            )
 
     async def _submit_market_order(
         self,

@@ -135,6 +135,53 @@ class TradeJournal:
         )
         return trade
 
+    def record_expired_missed(
+        self,
+        *,
+        symbol: str,
+        direction: TradeDirection,
+        source: TradeSource,
+        entry_price: float,
+        stop_loss: float,
+        take_profits: list[float],
+        confidence: float,
+        leverage: int,
+        amount: float | None = None,
+        notes: str = "",
+        probability_features: dict[str, Any] | None = None,
+    ) -> StoredTrade:
+        """Registra entrada não preenchida (LIMIT expirada) — libera slot de posição."""
+        from src.models.schemas import TradeStatus
+
+        trade = StoredTrade(
+            id=str(uuid.uuid4()),
+            symbol=symbol.upper(),
+            direction=direction,
+            source=source,
+            status=TradeStatus.EXPIRED_MISSED,
+            entry_price=entry_price,
+            stop_loss=stop_loss,
+            take_profits=take_profits,
+            confidence=confidence,
+            leverage=leverage,
+            amount=amount,
+            notes=notes,
+            probability_features=probability_features,
+            closed_at=datetime.now(timezone.utc),
+            close_reason="expired_missed",
+        )
+        trades = self._load()
+        trades.append(trade)
+        self._save(trades)
+        logger.info(
+            "Trade expired/missed | id=%s | %s %s | source=%s",
+            trade.id,
+            direction.value,
+            symbol,
+            source.value,
+        )
+        return trade
+
     def close_trade(
         self,
         trade_id: str,

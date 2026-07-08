@@ -14,11 +14,22 @@ from src.models.schemas import (
     TradeDirection,
     TradeSource,
 )
-from src.services.exchange_client import ExchangeClient, clamp_leverage_hard
+from src.services.exchange_client import (
+    EntryOrderExpiredError,
+    ExchangeClient,
+    clamp_leverage_hard,
+)
 from src.services.position_manager import ActiveTradeState, PositionManager
-from src.services.slippage_guard import SlippageEvent, format_slippage_alert, notify_slippage_events
+from src.services.slippage_guard import (
+    SlippageEvent,
+    format_slippage_alert,
+    handle_slippage_event,
+    is_symbol_slippage_blocked,
+    notify_slippage_events,
+)
 from src.services.trade_journal import TradeJournal
 from src.services.trade_notifier import TradeNotifier
+from src.strategies.scanner_filters import is_symbol_blacklisted
 from src.strategies.trade_validation import (
     REQUIRED_TP_COUNT,
     apply_liquidation_safe_stop_loss,
@@ -84,6 +95,14 @@ class ExecutionController:
 
     async def can_open_new_trade(self, symbol: str) -> tuple[bool, str]:
         """Verifica limite global e posição duplicada no símbolo."""
+        blocked, reason = is_symbol_blacklisted(symbol)
+        if blocked:
+            return False, reason
+
+        slip_blocked, slip_reason = is_symbol_slippage_blocked(symbol)
+        if slip_blocked:
+            return False, slip_reason
+
         if self._journal.has_open_position(symbol):
             return False, f"Já existe trade aberto em {symbol} no journal"
 
@@ -362,6 +381,31 @@ class ExecutionController:
                 tp_close_pcts=tp_close_pcts,
                 breakeven_after_tp=breakeven_tp,
             )
+        except EntryOrderExpiredError as exc:
+            logger.warning(
+                "Entrada LIMIT expirada | %s | %s",
+                decision.symbol,
+                exc.reason,
+            )
+            self._journal.record_expired_missed(
+                symbol=decision.symbol,
+                direction=decision.direction,
+                source=decision.source,
+                entry_price=decision.entry_price,
+                stop_loss=decision.stop_loss,
+                take_profits=take_profit_prices[:REQUIRED_TP_COUNT],
+                confidence=decision.confidence,
+                leverage=leverage,
+                amount=sizing.amount,
+                notes=f"LIMIT expired: {exc.reason}",
+                probability_features=(
+                    dict(decision.probability_breakdown["features"])
+                    if decision.probability_breakdown
+                    and decision.probability_breakdown.get("features")
+                    else None
+                ),
+            )
+            return None
         except Exception:
             logger.exception("Falha na execução | %s", decision.symbol)
             return None
@@ -448,8 +492,9 @@ class ExecutionController:
                         exec_price=float(slip["exec_price"]),
                         slippage_pct=float(slip["slippage_pct"]),
                         side=side.value,
-                        order_type="Market",
+                        order_type="Limit",
                     )
+                    handle_slippage_event(event)
                     await self._notifier.send_message(format_slippage_alert(event))
             except Exception:
                 logger.exception("Falha ao notificar trade aberto | %s", decision.symbol)

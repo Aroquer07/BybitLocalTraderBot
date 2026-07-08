@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Any
 
+from src.strategies.scanner_filters import normalize_symbol_key
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 SLIPPAGE_ALERT_THRESHOLD_PCT = 1.0
+SLIPPAGE_BLOCK_DURATION_SEC = 3600
+
+_blocked_symbols: dict[str, float] = {}
 
 
 @dataclass(frozen=True)
@@ -22,6 +27,39 @@ class SlippageEvent:
     side: str = ""
     order_type: str = ""
     exec_time_ms: int = 0
+
+
+def _normalize_symbol_key(symbol: str) -> str:
+    return normalize_symbol_key(symbol)
+
+
+def block_symbol_temporarily(
+    symbol: str,
+    *,
+    duration_sec: float = SLIPPAGE_BLOCK_DURATION_SEC,
+) -> None:
+    """Bloqueia novas entradas no ativo por slippage excessivo."""
+    key = _normalize_symbol_key(symbol)
+    expiry = time.monotonic() + duration_sec
+    _blocked_symbols[key] = expiry
+    logger.warning(
+        "SLIPPAGE BLOCK | %s bloqueado por %.0fs",
+        key,
+        duration_sec,
+    )
+
+
+def is_symbol_slippage_blocked(symbol: str) -> tuple[bool, str]:
+    """Retorna se o símbolo está temporariamente bloqueado por slippage."""
+    key = _normalize_symbol_key(symbol)
+    expiry = _blocked_symbols.get(key)
+    if expiry is None:
+        return False, ""
+    if time.monotonic() >= expiry:
+        _blocked_symbols.pop(key, None)
+        return False, ""
+    remaining = int(expiry - time.monotonic())
+    return True, f"Slippage block ativo em {key} ({remaining}s restantes)"
 
 
 def compute_slippage_pct(order_price: float, exec_price: float) -> float:
@@ -76,11 +114,18 @@ def format_slippage_alert(event: SlippageEvent) -> str:
     if "/" not in event.symbol and pair.endswith("USDT"):
         pair = event.symbol
     return (
-        f"⚠️ SLIPPAGE {event.slippage_pct:.2f}%\n"
+        f"🚨 [SLIPPAGE URGENTE] {event.slippage_pct:.2f}%\n"
         f"{pair} | {event.context.upper()}\n"
         f"Ordem: {event.order_price:.8g}\n"
-        f"Exec:  {event.exec_price:.8g}"
+        f"Exec:  {event.exec_price:.8g}\n"
+        f"Novas entradas bloqueadas temporariamente."
     )
+
+
+def handle_slippage_event(event: SlippageEvent) -> None:
+    """Log + bloqueio temporário do ativo após slippage crítico."""
+    log_slippage(event)
+    block_symbol_temporarily(event.symbol)
 
 
 def scan_execution_rows(
@@ -98,7 +143,7 @@ def scan_execution_rows(
         context = "execution"
         if stop_type and stop_type.upper() not in ("", "UNKNOWN"):
             context = "stop" if "TAKE" not in stop_type.upper() else "take_profit"
-        elif order_type.upper() == "MARKET":
+        elif order_type.upper() in ("MARKET", "LIMIT"):
             context = "entry"
         event = detect_slippage(
             symbol=str(row.get("symbol") or ""),
@@ -128,5 +173,5 @@ async def notify_slippage_events(
         if key in seen:
             continue
         seen.add(key)
-        log_slippage(event)
+        handle_slippage_event(event)
         await notifier.send_message(format_slippage_alert(event))

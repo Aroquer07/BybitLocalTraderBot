@@ -38,9 +38,9 @@ class TestParseMaxLeverageFromError:
 
 
 class TestClampLeverageHard:
-    def test_hard_cap_at_30(self) -> None:
+    def test_hard_cap_at_15(self) -> None:
         assert clamp_leverage_hard(50) == ABSOLUTE_MAX_LEVERAGE
-        assert clamp_leverage_hard(50, config_max=20) == 20
+        assert clamp_leverage_hard(50, config_max=20) == 15
         assert clamp_leverage_hard(15, market_max=10) == 10
         assert clamp_leverage_hard(0) == 1
 

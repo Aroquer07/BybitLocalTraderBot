@@ -24,6 +24,7 @@ from src.strategies.trade_validation import (
     validate_execution_decision,
 )
 from src.strategies.win_probability import enrich_decision_with_win_probability
+from src.strategies.scanner_filters import is_symbol_blacklisted
 from src.strategies.technical_analysis import TechnicalAnalysisEngine
 from src.utils.formatters import format_trade_decision_log
 from src.utils.logger import get_logger
@@ -72,6 +73,18 @@ class BrainController:
         if not symbol:
             logger.warning("Sinal sem símbolo identificável | msg_id=%s", signal.message_id)
             decision = self._reject("Símbolo não identificado no sinal")
+            await self._dispatch(signal, decision)
+            return decision
+
+        blacklisted, bl_reason = is_symbol_blacklisted(symbol)
+        if blacklisted:
+            logger.info(
+                "Sinal filtrado (blacklist) | msg_id=%s | %s | %s",
+                signal.message_id,
+                symbol,
+                bl_reason,
+            )
+            decision = self._reject(bl_reason, symbol=symbol, stage="filter")
             await self._dispatch(signal, decision)
             return decision
 

@@ -54,6 +54,7 @@ class TradeStatus(str, Enum):
     OPEN = "open"
     CLOSED = "closed"
     CANCELLED = "cancelled"
+    EXPIRED_MISSED = "expired_missed"
 
 
 class TelegramSignal(BaseModel):
