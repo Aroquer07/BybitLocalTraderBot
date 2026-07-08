@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
-
+import { FileText, ScrollText } from "lucide-react";
 import { AnalysisDecisionList } from "@/components/AnalysisDecisionList";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Tabs } from "@/components/ui/Tabs";
+import { MetricTile } from "@/components/ui/MetricTile";
 import { readUtcOffsetHours } from "@/lib/timezone";
 import { api, type AnalysisPayload } from "@/api/client";
-
-type Tab = "rejections" | "approvals";
 
 export function AnalysisPage() {
   const [data, setData] = useState<AnalysisPayload | null>(null);
   const [settings, setSettings] = useState<Record<string, unknown> | null>(null);
-  const [tab, setTab] = useState<Tab>("rejections");
+  const [tab, setTab] = useState<"rejections" | "approvals">("rejections");
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,7 +24,11 @@ export function AnalysisPage() {
   }, []);
 
   if (!data) {
-    return <p className="text-slate-400">Carregando análise...</p>;
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
+        Carregando análise...
+      </div>
+    );
   }
 
   const utcOffsetHours =
@@ -35,30 +40,31 @@ export function AnalysisPage() {
   const approvals = [...(data.approvals ?? [])].reverse();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Análise</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Rejeições e aprovações com foto do gráfico no momento da decisão (Pine traduzido)
-        </p>
+    <div className="space-y-8">
+      <PageHeader
+        title="Decisões"
+        description="Rejeições e aprovações com snapshot do gráfico no momento da decisão."
+      />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MetricTile label="Rejeições" value={rejections.length} />
+        <MetricTile label="Aprovações" value={approvals.length} />
+        <MetricTile label="UTC offset" value={`${utcOffsetHours}h`} subValue="Fuso do gráfico" />
       </div>
 
-      <div className="flex gap-2">
-        <TabButton
-          active={tab === "rejections"}
-          onClick={() => setTab("rejections")}
-          label={`Rejeições (${rejections.length})`}
-        />
-        <TabButton
-          active={tab === "approvals"}
-          onClick={() => setTab("approvals")}
-          label={`Aprovações (${approvals.length})`}
-        />
-      </div>
+      <Tabs
+        tabs={[
+          { id: "rejections", label: "Rejeições", count: rejections.length },
+          { id: "approvals", label: "Aprovações", count: approvals.length },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as "rejections" | "approvals")}
+      />
 
       <Card>
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-brand" />
             {tab === "rejections" ? "Rejeições recentes" : "Aprovações recentes"}
           </CardTitle>
         </CardHeader>
@@ -87,38 +93,17 @@ export function AnalysisPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Log do bot</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ScrollText className="h-4 w-4 text-slate-500" />
+            Log do bot
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <pre className="max-h-80 overflow-auto rounded-lg bg-black/40 p-4 font-mono text-xs text-slate-300">
+          <pre className="max-h-80 overflow-auto rounded-lg border border-surface-border bg-void/60 p-4 font-mono text-xs leading-relaxed text-slate-400">
             {data.log_tail.join("\n") || "Sem logs"}
           </pre>
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-        active
-          ? "bg-accent/20 text-accent"
-          : "bg-slate-800/60 text-slate-400 hover:text-white"
-      }`}
-    >
-      {label}
-    </button>
   );
 }

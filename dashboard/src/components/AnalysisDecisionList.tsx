@@ -2,9 +2,11 @@ import { useState } from "react";
 
 import { TradingViewChart } from "@/components/TradingViewChart";
 import { TradingViewWidget } from "@/components/TradingViewWidget";
+import { Badge } from "@/components/ui/Badge";
 import { formatDisplayTime } from "@/lib/timezone";
 import type { AnalysisDecision } from "@/types/chart";
 import { directionBadgeClass, stageLabel } from "@/lib/strategyPattern";
+import { cn } from "@/lib/utils";
 
 type Props = {
   items: AnalysisDecision[];
@@ -75,9 +77,10 @@ function DecisionCard({
 
   return (
     <div
-      className={`rounded-xl border bg-black/25 p-4 ${
-        isApproval ? "border-emerald-500/20" : "border-surface-border"
-      }`}
+      className={cn(
+        "rounded-xl border bg-void/40 p-4 transition",
+        isApproval ? "border-profit/20" : "border-surface-border hover:border-surface-border/80",
+      )}
     >
       <button
         type="button"
@@ -95,22 +98,14 @@ function DecisionCard({
               </span>
             )}
             {isApproval ? (
-              <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs text-emerald-300">
-                Aprovado
-              </span>
+              <Badge variant="profit">Aprovado</Badge>
             ) : (
-              <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
-                {stageLabel(String(item.stage ?? ""))}
-              </span>
+              <Badge variant="neutral">{stageLabel(String(item.stage ?? ""))}</Badge>
             )}
-            {item.strategy && (
-              <span className="rounded bg-violet-500/15 px-2 py-0.5 text-xs text-violet-300">
-                {item.strategy}
-              </span>
-            )}
-            <span className="text-xs text-slate-500">{item.source}</span>
+            {item.strategy && <Badge variant="brand">{item.strategy}</Badge>}
+            <span className="text-xs text-slate-600">{item.source}</span>
             {item.confidence != null && (
-              <span className="text-xs text-cyan-400">
+              <span className="font-mono text-xs tabular-nums text-brand">
                 P(win) {(item.confidence * 100).toFixed(0)}%
               </span>
             )}
@@ -122,7 +117,7 @@ function DecisionCard({
             </div>
           )}
         </div>
-        <span className="shrink-0 text-xs text-accent">{isOpen ? "Fechar" : "Ver foto"}</span>
+        <span className="shrink-0 text-xs font-medium text-brand">{isOpen ? "Fechar" : "Ver foto"}</span>
       </button>
 
       {isOpen && (
@@ -179,9 +174,10 @@ function ChartTab({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-        active ? "bg-accent/20 text-accent" : "bg-slate-800/60 text-slate-400 hover:text-white"
-      }`}
+      className={cn(
+        "rounded-lg px-3 py-1.5 text-xs font-medium transition",
+        active ? "bg-brand/15 text-brand" : "bg-void/50 text-slate-400 hover:text-white",
+      )}
     >
       {label}
     </button>

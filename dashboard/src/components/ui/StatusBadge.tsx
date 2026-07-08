@@ -3,24 +3,26 @@ import { cn } from "@/lib/utils";
 type Props = {
   status: "online" | "offline" | "warning";
   label: string;
+  pulse?: boolean;
 };
 
-export function StatusBadge({ status, label }: Props) {
+export function StatusBadge({ status, label, pulse = true }: Props) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium",
-        status === "online" && "bg-emerald-500/15 text-emerald-300",
-        status === "offline" && "bg-rose-500/15 text-rose-300",
-        status === "warning" && "bg-amber-500/15 text-amber-300",
+        "inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold",
+        status === "online" && "border-profit/25 bg-profit/10 text-profit",
+        status === "offline" && "border-loss/25 bg-loss/10 text-loss",
+        status === "warning" && "border-warn/25 bg-warn/10 text-warn",
       )}
     >
       <span
         className={cn(
           "h-2 w-2 rounded-full",
-          status === "online" && "bg-emerald-400 animate-pulse",
-          status === "offline" && "bg-rose-400",
-          status === "warning" && "bg-amber-400",
+          status === "online" && "bg-profit",
+          status === "offline" && "bg-loss",
+          status === "warning" && "bg-warn",
+          status === "online" && pulse && "animate-pulse-soft",
         )}
       />
       {label}

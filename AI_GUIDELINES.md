@@ -467,6 +467,14 @@ chore - add Cursor hook to inject AI guidelines
 - **Descrição:** Scanner abre vários trades na mesma direção no mesmo ciclo (ex.: 4 SHORTs 12:54–13:13 UTC fecharam juntos no bounce 13:34–13:41). Em `BYBIT_MODE=demo` até 10 slots (`effective_max_concurrent_trades`) amplifica volume (40 aberturas em 06/07, WR 24%). Limitar máx. N entradas correlacionadas (mesma direção) por batch/ciclo reduz perdas em rajada.
 - **Status:** open
 
+### IMP-014 — Redesign dashboard terminal crypto (2026-07-08)
+
+- **Prioridade:** medium
+- **Área:** dashboard
+- **Arquivo(s):** `dashboard/DESIGN.md`, `dashboard/src/**` (páginas, layout, UI primitives)
+- **Descrição:** UI completa redesenhada com vibe terminal crypto/ações (Impeccable): nav agrupada, bento overview, tabelas densas, tabs em settings/trades/análise. Gráficos Pine/snapshot em `TradingViewChart` **inalterados**.
+- **Status:** Implementado nesta sessão.
+
 ### ERR-013 — start.bat quebrava no Windows (LF-only) (2026-07-08)
 
 - **Sintoma:** `start.bat` falhava com `'ho'`, `'itle'`, `'wershell' não é reconhecido` e `ERRO: falha ao preparar ambiente`.
@@ -480,4 +488,4 @@ chore - add Cursor hook to inject AI guidelines
 
 ---
 
-*Última atualização: 2026-07-08 (forense WR/slippage: ERR-014 falsos positivos PartialStopLoss, IMP-013 batch correlacionado)*
+*Última atualização: 2026-07-08 (dashboard terminal crypto redesign IMP-014)*

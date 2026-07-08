@@ -2,11 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #334155 transparent;
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 3px;
+  }
+
+  body {
+    margin: 0;
+    @apply bg-void font-sans text-slate-100 antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid #3d7eff;
+    outline-offset: 2px;
+  }
 }
 
-body {
-  margin: 0;
+@layer components {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .terminal-bg {
+    @apply bg-void bg-terminal-grid bg-grid;
+  }
+
+  .panel {
+    @apply rounded-xl border border-surface-border bg-surface-raised shadow-panel;
+  }
+
+  .panel-header {
+    @apply flex items-center justify-between gap-3 border-b border-surface-border px-5 py-4;
+  }
+
+  .panel-title {
+    @apply text-sm font-semibold tracking-tight text-slate-100;
+  }
+
+  .panel-body {
+    @apply p-5;
+  }
+
+  .data-label {
+    @apply text-[11px] font-medium uppercase tracking-wider text-slate-500;
+  }
+
+  .data-value {
+    @apply font-mono text-xl font-semibold tabular-nums text-slate-50;
+  }
+
+  .pnl-positive {
+    @apply text-profit;
+  }
+
+  .pnl-negative {
+    @apply text-loss;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-surface-border bg-void/60 px-3 py-2.5 text-sm text-slate-100 transition placeholder:text-slate-600 focus:border-brand/50 focus:outline-none focus:ring-2 focus:ring-brand/20;
+  }
+
+  .toggle-row {
+    @apply flex items-center justify-between gap-4 rounded-lg border border-surface-border/60 bg-void/40 px-4 py-3 text-sm transition hover:bg-surface-hover;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

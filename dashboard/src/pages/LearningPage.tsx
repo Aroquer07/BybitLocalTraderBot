@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
+import { Brain, Target, TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { MetricTile } from "@/components/ui/MetricTile";
+import { Badge } from "@/components/ui/Badge";
 import { api, type LearningPayload } from "@/api/client";
 import { formatPct } from "@/lib/utils";
 
@@ -11,50 +15,73 @@ export function LearningPage() {
   }, []);
 
   if (!data) {
-    return <p className="text-slate-400">Loading learning data...</p>;
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
+        Carregando dados de aprendizado...
+      </div>
+    );
   }
 
   const { report } = data;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Learning</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          {report.total_closed} closed trades · {report.with_features} with features ·{" "}
-          {data.rejections_total} rejections logged
-        </p>
+    <div className="space-y-8">
+      <PageHeader
+        title="Aprendizado"
+        description="Padrões que funcionam, calibração do P(win) e recomendações do motor de learning."
+        badge={<Badge variant="brand">{report.total_closed} trades analisados</Badge>}
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricTile label="Trades fechados" value={report.total_closed} icon={<Target className="h-4 w-4" />} />
+        <MetricTile label="Com features" value={report.with_features} />
+        <MetricTile label="Rejeições logadas" value={data.rejections_total} />
+        <MetricTile
+          label="Calibração"
+          value={`${report.calibration.length} faixas`}
+          icon={<Brain className="h-4 w-4" />}
+        />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Best patterns</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-profit">
+              <TrendingUp className="h-4 w-4" />
+              Melhores padrões
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-2">
             {report.best_patterns.map((p) => (
-              <div key={p.pattern} className="rounded-lg bg-black/20 p-3 font-mono text-xs">
-                <div className="text-emerald-300">WR {p.winrate_pct.toFixed(0)}% (n={p.sample_n})</div>
-                <div className="mt-1 text-slate-400">{p.pattern}</div>
-                <div className="mt-1">{formatPct(p.avg_pnl_pct)} avg</div>
+              <div key={p.pattern} className="rounded-lg border border-profit/15 bg-profit/5 p-4">
+                <div className="font-mono text-sm font-semibold tabular-nums text-profit">
+                  WR {p.winrate_pct.toFixed(0)}% · n={p.sample_n}
+                </div>
+                <div className="mt-1 text-sm text-slate-300">{p.pattern}</div>
+                <div className="mt-2 font-mono text-xs tabular-nums text-slate-500">{formatPct(p.avg_pnl_pct)} médio</div>
               </div>
             ))}
             {!report.best_patterns.length && (
-              <p className="text-slate-500">Not enough samples yet</p>
+              <p className="text-sm text-slate-500">Amostras insuficientes</p>
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Worst patterns</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-loss">
+              <TrendingDown className="h-4 w-4" />
+              Piores padrões
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-2">
             {report.worst_patterns.map((p) => (
-              <div key={p.pattern} className="rounded-lg bg-black/20 p-3 font-mono text-xs">
-                <div className="text-rose-300">WR {p.winrate_pct.toFixed(0)}% (n={p.sample_n})</div>
-                <div className="mt-1 text-slate-400">{p.pattern}</div>
-                <div className="mt-1">{formatPct(p.avg_pnl_pct)} avg</div>
+              <div key={p.pattern} className="rounded-lg border border-loss/15 bg-loss/5 p-4">
+                <div className="font-mono text-sm font-semibold tabular-nums text-loss">
+                  WR {p.winrate_pct.toFixed(0)}% · n={p.sample_n}
+                </div>
+                <div className="mt-1 text-sm text-slate-300">{p.pattern}</div>
+                <div className="mt-2 font-mono text-xs tabular-nums text-slate-500">{formatPct(p.avg_pnl_pct)} médio</div>
               </div>
             ))}
           </CardContent>
@@ -63,18 +90,15 @@ export function LearningPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>P(win) calibration</CardTitle>
+          <CardTitle>Calibração P(win)</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {report.calibration.map((c) => (
-              <div
-                key={c.predicted_range}
-                className="rounded-lg border border-surface-border p-3 text-sm"
-              >
-                <div className="font-medium">{c.predicted_range}</div>
-                <div className="text-slate-400">
-                  Actual WR {c.actual_winrate_pct.toFixed(0)}% · n={c.sample_n}
+              <div key={c.predicted_range} className="rounded-lg border border-surface-border bg-void/40 p-4">
+                <div className="font-semibold text-white">{c.predicted_range}</div>
+                <div className="mt-1 font-mono text-sm tabular-nums text-slate-400">
+                  WR real {c.actual_winrate_pct.toFixed(0)}% · n={c.sample_n}
                 </div>
               </div>
             ))}
@@ -84,12 +108,15 @@ export function LearningPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recommendations</CardTitle>
+          <CardTitle>Recomendações</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-300">
+          <ul className="space-y-3">
             {report.recommendations.map((r) => (
-              <li key={r}>{r}</li>
+              <li key={r} className="flex gap-3 text-sm text-slate-300">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                {r}
+              </li>
             ))}
           </ul>
         </CardContent>

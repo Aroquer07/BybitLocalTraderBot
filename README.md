@@ -809,22 +809,25 @@ Se `TELEGRAM_BOT_TOKEN` ou `TELEGRAM_NOTIFY_CHAT_ID` ausentes → notificações
 ### 14.1 Stack
 
 - **React 18** + TypeScript + Vite 6
-- **Tailwind CSS** + componentes próprios
-- **recharts** (equity/PnL), **lightweight-charts** (candles)
+- **Tailwind CSS** + design system em `dashboard/DESIGN.md` (terminal crypto, dark-only)
+- **Plus Jakarta Sans** + **IBM Plex Mono** (métricas tabulares)
+- **recharts** (equity/PnL), **lightweight-charts** (candles de análise — lógica Pine intacta)
 - **FastAPI** na porta 8765
 
 ### 14.2 Páginas
 
+Navegação agrupada: **Mercado** · **Operações** · **Inteligência** · **Sistema**
+
 | Rota | Página | Função |
 |------|--------|--------|
-| `/` | Dashboard | Status, saldo, stats, equity, ranking, **PnL Bybit agrupado** |
-| `/settings` | Settings | Risco, scanner, IMBA, learning, timeframes |
-| `/strategies` | Strategies | Toggles do pipeline scanner |
-| `/watchlist` | Watchlist | Símbolos + breakout outlook |
-| `/trades` | Trades | Journal completo |
-| `/analytics` | Analytics | Gráficos PnL |
-| `/learning` | Learning | Padrões, calibração, rejeições |
-| `/analysis` | Analysis | Rejeições/aprovações com chart + Pine replay |
+| `/` | Overview | Métricas, saldo, equity, PnL Bybit, top padrões, log |
+| `/watchlist` | Watchlist | Símbolos + breakout outlook (tabela) |
+| `/analytics` | Performance | Curva equity, PnL por fonte/símbolo |
+| `/trades` | Trades | Journal com filtros (abertos/ganhos/perdas) |
+| `/analysis` | Decisões | Rejeições/aprovações + chart snapshot (Pine inalterado) |
+| `/strategies` | Estratégias | Pipeline scanner + ranking por padrão |
+| `/learning` | Aprendizado | Padrões, calibração P(win), recomendações |
+| `/settings` | Configurações | Formulário tabulado (conta, risco, scanner, IMBA, display) |
 
 ### 14.3 API REST (endpoints principais)
 

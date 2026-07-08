@@ -2,8 +2,8 @@ import { cn } from "@/lib/utils";
 import type { ButtonHTMLAttributes } from "react";
 
 type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "default" | "outline" | "ghost" | "danger";
-  size?: "sm" | "md";
+  variant?: "default" | "outline" | "ghost" | "danger" | "profit";
+  size?: "sm" | "md" | "lg";
 };
 
 export function Button({
@@ -15,12 +15,16 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50",
-        size === "sm" ? "h-8 px-3 text-xs" : "h-10 px-4 text-sm",
-        variant === "default" && "bg-accent text-slate-950 hover:bg-accent-muted",
-        variant === "outline" && "border border-surface-border bg-surface-raised hover:bg-slate-800",
-        variant === "ghost" && "hover:bg-slate-800",
-        variant === "danger" && "bg-rose-600 text-white hover:bg-rose-500",
+        "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:pointer-events-none disabled:opacity-50",
+        size === "sm" && "h-8 px-3 text-xs",
+        size === "md" && "h-10 px-4 text-sm",
+        size === "lg" && "h-11 px-5 text-sm",
+        variant === "default" && "bg-brand text-white shadow-glow hover:bg-brand-muted",
+        variant === "outline" &&
+          "border border-surface-border bg-surface-raised text-slate-200 hover:border-brand/30 hover:bg-surface-hover",
+        variant === "ghost" && "text-slate-300 hover:bg-surface-hover hover:text-white",
+        variant === "danger" && "bg-loss-muted text-white hover:bg-loss",
+        variant === "profit" && "bg-profit-muted text-void hover:bg-profit",
         className,
       )}
       {...props}
